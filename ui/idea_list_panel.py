@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QLabel, QLineEdit, QAbstractItemView
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QLabel, QLineEdit, QAbstractItemView, QFrame
 from PyQt6.QtCore import pyqtSignal, Qt
 
 class IdeaListPanel(QWidget):
@@ -10,21 +10,38 @@ class IdeaListPanel(QWidget):
         self.init_ui()
 
     def init_ui(self):
-        layout = QVBoxLayout(self)
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+
+        # Card Container
+        self.container = QFrame()
+        self.container.setObjectName("card")
+        container_layout = QVBoxLayout(self.container)
+        container_layout.setContentsMargins(15, 15, 15, 15)
+        container_layout.setSpacing(15)
+
+        header = QLabel("IDEAS")
+        header.setObjectName("heading")
+        container_layout.addWidget(header)
         
         self.search_bar = QLineEdit()
-        self.search_bar.setPlaceholderText("Search ideas by title...")
+        self.search_bar.setPlaceholderText("Search ideas...")
+        self.search_bar.setMinimumHeight(40)
         self.search_bar.textChanged.connect(self.filter_ideas)
-        layout.addWidget(self.search_bar)
+        container_layout.addWidget(self.search_bar)
 
         self.table = QTableWidget(0, 2)
         self.table.setHorizontalHeaderLabels(["Title", "Hurdles"])
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table.setShowGrid(False)
+        self.table.verticalHeader().setVisible(False)
+        self.table.setAlternatingRowColors(False)
         self.table.itemSelectionChanged.connect(self.on_selection_changed)
         
-        layout.addWidget(self.table)
+        container_layout.addWidget(self.table)
+        main_layout.addWidget(self.container)
 
     def populate_ideas(self, ideas):
         self.ideas = ideas

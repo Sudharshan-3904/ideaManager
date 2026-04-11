@@ -13,25 +13,41 @@ class AddIdeaDialog(QDialog):
         self.init_ui()
 
     def init_ui(self):
+        self.setObjectName("card")
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
         
-        layout.addWidget(QLabel("Title:"))
+        header = QLabel("NEW IDEA")
+        header.setObjectName("heading")
+        layout.addWidget(header)
+
+        layout.addWidget(QLabel("Title"))
         self.title_input = QLineEdit()
+        self.title_input.setPlaceholderText("Enter a catchy title...")
         layout.addWidget(self.title_input)
 
-        layout.addWidget(QLabel("Description:"))
+        layout.addWidget(QLabel("Description"))
         self.desc_input = QTextEdit()
+        self.desc_input.setPlaceholderText("What is this idea about?")
         layout.addWidget(self.desc_input)
 
-        layout.addWidget(QLabel("Target Customers:"))
+        layout.addWidget(QLabel("Target Customers"))
         self.customers_input = QLineEdit()
+        self.customers_input.setPlaceholderText("Who is this for?")
         layout.addWidget(self.customers_input)
 
         btn_layout = QHBoxLayout()
-        self.add_btn = QPushButton("Add")
+        btn_layout.setSpacing(10)
+        self.add_btn = QPushButton("Create Idea")
+        self.add_btn.setObjectName("primary")
+        self.add_btn.setMinimumHeight(40)
         self.add_btn.clicked.connect(self.accept)
+        
         self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.setMinimumHeight(40)
         self.cancel_btn.clicked.connect(self.reject)
+        
         btn_layout.addWidget(self.add_btn)
         btn_layout.addWidget(self.cancel_btn)
         layout.addLayout(btn_layout)
@@ -58,27 +74,44 @@ class MainWindow(QMainWindow):
 
     def init_ui(self):
         central_widget = QWidget()
+        central_widget.setObjectName("main_bg")
         self.setCentralWidget(central_widget)
         main_layout = QHBoxLayout(central_widget)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(10)
 
         # Splitter to allow resizing of left/right panels
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setHandleWidth(2)
 
         # Left Panel (List + Controls)
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(10)
         
         self.list_panel = IdeaListPanel()
         self.list_panel.ideaSelected.connect(self.on_idea_selected)
         left_layout.addWidget(self.list_panel)
 
+        btn_container = QWidget()
+        btn_layout = QHBoxLayout(btn_container)
+        btn_layout.setContentsMargins(10, 0, 10, 10)
+        btn_layout.setSpacing(10)
+
         self.add_idea_btn = QPushButton("+ New Idea")
+        self.add_idea_btn.setObjectName("primary")
+        self.add_idea_btn.setMinimumHeight(40)
         self.add_idea_btn.clicked.connect(self.on_add_idea)
-        left_layout.addWidget(self.add_idea_btn)
+        btn_layout.addWidget(self.add_idea_btn)
         
-        self.delete_idea_btn = QPushButton("- Delete Idea")
+        self.delete_idea_btn = QPushButton("Delete")
+        self.delete_idea_btn.setObjectName("danger")
+        self.delete_idea_btn.setMinimumHeight(40)
         self.delete_idea_btn.clicked.connect(self.on_delete_idea)
-        left_layout.addWidget(self.delete_idea_btn)
+        btn_layout.addWidget(self.delete_idea_btn)
+
+        left_layout.addWidget(btn_container)
 
         splitter.addWidget(left_widget)
 
@@ -86,6 +119,9 @@ class MainWindow(QMainWindow):
         self.detail_panel = IdeaDetailPanel()
         self.detail_panel.ideaUpdated.connect(self.on_idea_updated)
         splitter.addWidget(self.detail_panel)
+
+        # Set initial sizes for splitter
+        splitter.setSizes([350, 650])
 
         main_layout.addWidget(splitter)
 

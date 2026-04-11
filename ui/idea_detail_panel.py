@@ -1,5 +1,5 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QFormLayout, QLineEdit, QTextEdit, QPushButton, QLabel, QScrollArea
-from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QFormLayout, QLineEdit, QTextEdit, QPushButton, QLabel, QScrollArea, QFrame
+from PyQt6.QtCore import pyqtSignal, Qt
 from ui.hurdle_panel import HurdlePanel
 
 class IdeaDetailPanel(QWidget):
@@ -12,36 +12,64 @@ class IdeaDetailPanel(QWidget):
         self.init_ui()
 
     def init_ui(self):
-        layout = QVBoxLayout(self)
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(10, 10, 10, 10)
 
-        content_widget = QWidget()
-        self.form_layout = QFormLayout(content_widget)
+        # Main Card
+        self.container = QFrame()
+        self.container.setObjectName("card")
+        container_layout = QVBoxLayout(self.container)
+        container_layout.setContentsMargins(20, 20, 20, 20)
+        container_layout.setSpacing(15)
+
+        header = QLabel("DETAILS")
+        header.setObjectName("heading")
+        container_layout.addWidget(header)
+
+        # Form as a scrollable area if it gets too long
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setStyleSheet("background-color: transparent;")
+        
+        form_widget = QWidget()
+        form_widget.setStyleSheet("background-color: transparent;")
+        self.form_layout = QFormLayout(form_widget)
+        self.form_layout.setSpacing(10)
+        self.form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
 
         self.title_input = QLineEdit()
-        self.form_layout.addRow("Title:", self.title_input)
+        self.form_layout.addRow("Title", self.title_input)
 
         self.desc_input = QTextEdit()
-        self.form_layout.addRow("Description:", self.desc_input)
+        self.desc_input.setMinimumHeight(80)
+        self.form_layout.addRow("Description", self.desc_input)
 
         self.customers_input = QLineEdit()
-        self.form_layout.addRow("Target Customers:", self.customers_input)
+        self.form_layout.addRow("Target Customers", self.customers_input)
 
         self.deliverables_input = QTextEdit()
         self.deliverables_input.setMaximumHeight(80)
-        self.form_layout.addRow("Minimal Deliverables:", self.deliverables_input)
+        self.form_layout.addRow("Minimal Deliverables", self.deliverables_input)
 
         self.extensions_input = QTextEdit()
         self.extensions_input.setMaximumHeight(80)
-        self.form_layout.addRow("Future Extensions:", self.extensions_input)
+        self.form_layout.addRow("Future Extensions", self.extensions_input)
+
+        scroll.setWidget(form_widget)
+        container_layout.addWidget(scroll)
 
         self.hurdle_panel = HurdlePanel()
         self.hurdle_panel.hurdleAdded.connect(self.on_hurdle_added)
-        layout.addWidget(content_widget)
-        layout.addWidget(self.hurdle_panel)
+        container_layout.addWidget(self.hurdle_panel)
 
         self.save_btn = QPushButton("Save Changes")
+        self.save_btn.setObjectName("primary")
+        self.save_btn.setMinimumHeight(45)
         self.save_btn.clicked.connect(self.save_changes)
-        layout.addWidget(self.save_btn)
+        container_layout.addWidget(self.save_btn)
+
+        main_layout.addWidget(self.container)
 
     def set_idea(self, idea):
         self.current_idea = idea

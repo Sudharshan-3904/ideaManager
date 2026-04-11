@@ -11,21 +11,36 @@ class AddHurdleDialog(QDialog):
         self.init_ui()
 
     def init_ui(self):
+        self.setObjectName("card")
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
         
-        layout.addWidget(QLabel("Main Setback:"))
+        header = QLabel("NEW HURDLE")
+        header.setObjectName("heading")
+        layout.addWidget(header)
+
+        layout.addWidget(QLabel("Main Setback"))
         self.setback_input = QLineEdit()
+        self.setback_input.setPlaceholderText("e.g., Technical limitations, Funding...")
         layout.addWidget(self.setback_input)
 
-        layout.addWidget(QLabel("Description:"))
+        layout.addWidget(QLabel("Description"))
         self.desc_input = QTextEdit()
+        self.desc_input.setPlaceholderText("Explain the challenge in detail...")
         layout.addWidget(self.desc_input)
 
         buttons = QHBoxLayout()
-        self.add_btn = QPushButton("Add")
+        buttons.setSpacing(10)
+        self.add_btn = QPushButton("Log Hurdle")
+        self.add_btn.setObjectName("primary")
+        self.add_btn.setMinimumHeight(40)
         self.add_btn.clicked.connect(self.accept)
+        
         self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.setMinimumHeight(40)
         self.cancel_btn.clicked.connect(self.reject)
+        
         buttons.addWidget(self.add_btn)
         buttons.addWidget(self.cancel_btn)
         layout.addLayout(buttons)
@@ -45,15 +60,23 @@ class HurdlePanel(QWidget):
 
     def init_ui(self):
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 10, 0, 0)
+        layout.setSpacing(10)
         
-        layout.addWidget(QLabel("<b>Log of Hurdles</b>"))
+        header = QLabel("HURDLES")
+        header.setObjectName("heading")
+        layout.addWidget(header)
 
         self.table = QTableWidget(0, 3)
         self.table.setHorizontalHeaderLabels(["Date", "Setback", "Description"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.setShowGrid(False)
+        self.table.verticalHeader().setVisible(False)
+        self.table.setMinimumHeight(150)
         layout.addWidget(self.table)
 
-        self.add_btn = QPushButton("Add Hurdle")
+        self.add_btn = QPushButton("+ Add Hurdle")
+        self.add_btn.setMinimumHeight(35)
         self.add_btn.clicked.connect(self.on_add_hurdle)
         layout.addWidget(self.add_btn)
 
