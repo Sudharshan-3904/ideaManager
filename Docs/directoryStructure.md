@@ -4,6 +4,7 @@
 idea-manager/
 ├── main.py
 ├── ideas.csv
+├── ReadMe.md
 ├── components/
 │   ├── __init__.py
 │   ├── idea.py
@@ -17,10 +18,12 @@ idea-manager/
 │   ├── main_window.py
 │   ├── idea_list_panel.py
 │   ├── idea_detail_panel.py
-│   └── hurdle_panel.py
+│   ├── hurdle_panel.py
+│   └── styles.py
 └── utils/
     ├── __init__.py
     └── formatters.py
+
 ```
 
 ---
@@ -62,9 +65,11 @@ idea-manager/
 |---|---|
 | `__init__.py` | Exposes UI components. |
 | `main_window.py` | The top-level `QMainWindow`. Assembles all panels, manages the app layout, and wires up signals between components. |
-| `idea_list_panel.py` | Left-side panel showing a scrollable, filterable list of all ideas using a `QTableWidget` (powered by `PrettyTable` for formatting). Emits a signal when an idea is selected. |
+| `idea_list_panel.py` | Left-side panel showing a scrollable, filterable list of all ideas using a `QTableWidget`. Emits a signal when an idea is selected. |
 | `idea_detail_panel.py` | Right-side panel showing the full details of the currently selected idea. Allows editing of title, description, target customers, minimal deliverables, and future extensions. |
 | `hurdle_panel.py` | Sub-panel within the detail view for viewing and adding hurdles to the current idea. Displays hurdles in a table with date, main setback, and description columns. |
+| `styles.py` | Contains the modern dark-themed QSS stylesheet used to style the entire application for a premium, consistent look. |
+
 
 ---
 

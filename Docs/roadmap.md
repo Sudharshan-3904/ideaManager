@@ -54,25 +54,27 @@ Make the app fully usable for daily idea tracking.
 
 ---
 
-## Phase 5 — Quality of Life 🔲 _(In Progress)_
+## Phase 5 — UI & Aesthetics ✅ _(Completed)_
 
-Polish and convenience features.
+Modernizing the interface with professional styling.
 
+- [x] Modern Dark Mode support via QSS
 - [x] Search and filter ideas by title or target customer
-- [ ] Sort ideas by title, date created, or number of hurdles
-- [ ] Keyboard shortcuts for common actions (new idea, save, delete)
-- [ ] Empty state UI for when no ideas have been added yet
+- [x] Card-based layout with rounded corners and consistent spacing
+- [x] Visual feedback for button states (hover, pressed)
 - [x] Validation — prevent saving ideas with empty titles
 
 ---
 
-## Phase 6 — Extensions 🔲 _(Future)_
+## Phase 6 — Extensions 🔲 _(In Progress)_
 
 Longer-term ideas to expand the app.
 
-- [ ] Minimal Deliverables tracker — checklist within each idea
-- [ ] Future Extensions notes section per idea
+- [x] Minimal Deliverables tracker — section within each idea
+- [x] Future Extensions notes section per idea
+- [ ] Sort ideas by title, date created, or number of hurdles
+- [ ] Keyboard shortcuts for common actions (new idea, save, delete)
+- [ ] Empty state UI for when no ideas have been added yet
 - [ ] Export ideas to PDF or Markdown
 - [ ] Import ideas from a CSV file
 - [ ] Tagging and categorization system
-- [ ] Dark mode support

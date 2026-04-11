@@ -13,10 +13,11 @@ Idea Manager is a personal productivity tool designed to help you move ideas fro
 ## Features
 
 - **Create & manage ideas** with titles, descriptions, and target customer profiles
+- **Modern Dark UI** — a sleek, professional interface built with PyQt6 and custom QSS styling
 - **Track hurdles** — log obstacles as structured entries with a date, a main setback label, and a detailed description
-- **Tabular idea browser** — view all your ideas in a clean, formatted table (powered by PrettyTable)
+- **Tabular idea browser** — search and filter through all your ideas in a clean, scrollable table
 - **CSV-backed persistence** — data is stored in a plain `ideas.csv` file; no database required
-- **PyQt6 desktop interface** — a native desktop GUI for comfortable, distraction-free use
+- **Desktop interface** — a native desktop application for comfortable, distraction-free use
 
 ---
 
@@ -24,11 +25,13 @@ Idea Manager is a personal productivity tool designed to help you move ideas fro
 
 ```
 idea-manager/
-├── ideas.csv           # Local data store (auto-created on first run)
-├── components.py       # Core data models: Idea and Hurdle classes
-├── ideaManager.py      # Main application entry point and UI logic
-├── definitions.txt     # Design notes and class planning
-└── tester.py           # Development scratch/test script
+├── main.py             # Application entry point
+├── ideas.csv           # Local data store
+├── components/         # Core data models (Idea, Hurdle)
+├── data/               # Persistence layer (CSV handling)
+├── ui/                 # PyQt6 Interface & Styles
+├── utils/              # Helper functions
+└── Docs/               # Project documentation
 ```
 
 ---
@@ -45,8 +48,8 @@ Represents a single project or business idea.
 | `description`          | `str`          | Full description of the concept             |
 | `hurdles`              | `list[Hurdle]` | List of obstacles associated with this idea |
 | `target_customers`     | `str`          | Who this idea serves                        |
-| `minimal_deliverables` | _(planned)_    | The smallest shippable version              |
-| `future_extensions`    | _(planned)_    | Possible expansions beyond the MVP          |
+| `minimal_deliverables` | `str`          | The smallest shippable version              |
+| `future_extensions`    | `str`          | Possible expansions beyond the MVP          |
 
 ### `Hurdle`
 
@@ -60,14 +63,13 @@ Represents a single obstacle or challenge tied to an idea.
 
 ---
 
-## Planned Roadmap
-
-- [ ] Full PyQt6 GUI with idea list, detail panel, and hurdle tracker
-- [ ] Add/edit/delete ideas from the interface
-- [ ] Log and review hurdles per idea
-- [ ] `Minimal Deliverables` and `Future Extensions` fields per idea
+- [x] Full PyQt6 GUI with idea list, detail panel, and hurdle tracker
+- [x] Modern Dark Mode styling
+- [x] Add/edit/delete ideas from the interface
+- [x] Log and review hurdles per idea
+- [x] `Minimal Deliverables` and `Future Extensions` fields per idea
+- [ ] Sortable idea table view
 - [ ] CSV import/export
-- [ ] Sortable/filterable idea table view
 
 ---
 
@@ -93,11 +95,11 @@ pip install pandas prettytable PyQt6
 git clone <repo-url>
 cd idea-manager
 pip install pandas prettytable PyQt6
-python ideaManager.py
+python main.py
 ```
 
 ---
 
 ## Notes
 
-This project is in early development. The data models in `components.py` are largely defined; the GUI layer in `ideaManager.py` is the next major area of work.
+This project has recently undergone a major UI overhaul to provide a premium dark-themed experience. Core functionality is stable, and future work will focus on export capabilities and enhanced organization tools.
