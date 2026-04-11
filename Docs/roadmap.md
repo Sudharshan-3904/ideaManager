@@ -2,67 +2,67 @@
 
 ---
 
-## Phase 1 — Foundation 🔲 _(Not Started)_
+## Phase 1 — Foundation ✅ _(Completed)_
 
 Core data models and local persistence.
 
-- [ ] Define `Idea` class with title, description, hurdles, and target customers
-- [ ] Define `Hurdle` class with date, main setback, and description
-- [ ] Set up `ideas.csv` as the local data store
-- [ ] Fix bugs in `components.py` (variable references, return types)
-- [ ] Implement `loadDataFromFile()` fully in `Idea`
-- [ ] Implement `loadFromStr()` fully in `Hurdle`
-- [ ] Implement `updateFile()` — called after every mutation to persist changes to CSV
-- [ ] Add `minimal_deliverables` and `future_extensions` fields to `Idea`
+- [x] Define `Idea` class with title, description, hurdles, and target customers
+- [x] Define `Hurdle` class with date, main setback, and description
+- [x] Set up `ideas.csv` as the local data store
+- [x] Fix bugs in `components.py` (variable references, return types)
+- [x] Implement `loadDataFromFile()` fully in `Idea` (implemented via `Idea.from_dict`)
+- [x] Implement `loadFromStr()` fully in `Hurdle`
+- [x] Implement `updateFile()` (implemented via `IdeaRepository.save_all_ideas`)
+- [x] Add `minimal_deliverables` and `future_extensions` fields to `Idea`
 
 ---
 
-## Phase 2 — Data Layer 🔲 _(Not Started)_
+## Phase 2 — Data Layer ✅ _(Completed)_
 
 Clean separation between data access and business logic.
 
-- [ ] Create `csv_handler.py` for low-level CSV read/write/update/delete via `pandas`
-- [ ] Create `idea_repository.py` as a higher-level interface that maps CSV rows ↔ `Idea` objects
-- [ ] Replace direct `pd.read_csv` calls in models with repository calls
+- [x] Create `csv_handler.py` for low-level CSV read/write/update/delete via `pandas`
+- [x] Create `idea_repository.py` as a higher-level interface that maps CSV rows ↔ `Idea` objects
+- [x] Replace direct `pd.read_csv` calls in models with repository calls
 - [ ] Write basic tests for create, read, update, and delete operations
 
 ---
 
-## Phase 3 — Desktop GUI 🔲 _(Not Started)_
+## Phase 3 — Desktop GUI ✅ _(Completed)_
 
 Build the PyQt6 interface, panel by panel.
 
-- [ ] Set up `main.py` as the application entry point
-- [ ] Create `main_window.py` — top-level window with a two-panel layout
-- [ ] Build `idea_list_panel.py` — scrollable table of all ideas on the left
-- [ ] Build `idea_detail_panel.py` — full idea view and edit form on the right
-- [ ] Build `hurdle_panel.py` — sub-panel within the detail view to view and add hurdles
-- [ ] Wire up signals between panels (e.g. selecting an idea loads its details)
+- [x] Set up `main.py` as the application entry point
+- [x] Create `main_window.py` — top-level window with a two-panel layout
+- [x] Build `idea_list_panel.py` — scrollable table of all ideas on the left
+- [x] Build `idea_detail_panel.py` — full idea view and edit form on the right
+- [x] Build `hurdle_panel.py` — sub-panel within the detail view to view and add hurdles
+- [x] Wire up signals between panels (e.g. selecting an idea loads its details)
 
 ---
 
-## Phase 4 — Core Interactions 🔲 _(Not Started)_
+## Phase 4 — Core Interactions ✅ _(Mostly Completed)_
 
 Make the app fully usable for daily idea tracking.
 
-- [ ] Add new idea via a form dialog
-- [ ] Edit idea fields inline in the detail panel
-- [ ] Delete an idea with a confirmation prompt
-- [ ] Add a new hurdle to any idea
+- [x] Add new idea via a form dialog
+- [x] Edit idea fields inline in the detail panel
+- [x] Delete an idea with a confirmation prompt
+- [x] Add a new hurdle to any idea
 - [ ] Delete a hurdle
-- [ ] Auto-save changes to `ideas.csv` on every edit
+- [x] Auto-save changes to `ideas.csv` on every edit
 
 ---
 
-## Phase 5 — Quality of Life 🔲 _(Not Started)_
+## Phase 5 — Quality of Life 🔲 _(In Progress)_
 
 Polish and convenience features.
 
-- [ ] Search and filter ideas by title or target customer
+- [x] Search and filter ideas by title or target customer
 - [ ] Sort ideas by title, date created, or number of hurdles
 - [ ] Keyboard shortcuts for common actions (new idea, save, delete)
 - [ ] Empty state UI for when no ideas have been added yet
-- [ ] Validation — prevent saving ideas with empty titles
+- [x] Validation — prevent saving ideas with empty titles
 
 ---
 
