@@ -88,3 +88,48 @@ Building internal observability and AI readiness.
 - [x] FastMCP Integration for AI Agent tool access
 - [x] Interactive System Architecture Flowchart (XYFlow)
 - [x] Bi-directional communication modeling (Dotted/Solid arrows)
+
+---
+
+## Phase 8 — Persistence Layer (SQL Migration) ⏳ _(Planned)_
+
+Moving from flat CSV to a robust relational database for atomicity and faster querying.
+
+- [ ] Design SQLite schema for core tables: `Ideas`, `Hurdles`, `Notes`, and `Tags`
+- [ ] Implement `backend/data/db_manager.py` — unified interface for all DB interactions
+- [ ] Create `migration_csv_to_sqlite.py` script for painless data transition
+- [ ] Configure `IdeaRepository` to leverage the SQLite backend instead of CSV
+
+---
+
+## Phase 9 — Identity & Access (Basic Auth) ⏳ _(Planned)_
+
+Securing personal data for solo testing environments.
+
+- [ ] Create `Users` table with username and salted/hashed password storage (`bcrypt`)
+- [ ] Implement Backend Login endpoint returning JWT or session tokens
+- [ ] Secure all sensitive API endpoints with authentication middleware
+- [ ] Add Frontend Login overlay and session persistence with LocalStorage
+
+---
+
+## Phase 10 — Frontend Resilience & UX Polish ⏳ _(Planned)_
+
+Refining the interface for a smoother, professional-grade user experience.
+
+- [ ] Implement global loading states and skeleton loaders for all Dashboard sectors
+- [ ] Replace native Browser `alert()` and `confirm()` prompts with themed components
+- [ ] Integrate a Toast Notification system for operation feedback (Success/Error)
+- [ ] Implement state persistence for Search Query and Filter settings across refreshes
+
+---
+
+## Phase 11 — Logic Validation & Data Integrity ⏳ _(Planned)_
+
+Hardening business rules to prevent data corruption and accidental loss.
+
+- [ ] Implement strict server-side model validation (Unique titles, date adherence)
+- [ ] Add "Archival" feature (Soft Delete) with a dedicated "Archived" UI tab
+- [ ] Sanitize and normalize all string inputs to avoid breakage
+- [ ] Implement an automated DB backup mechanism on data change
+
