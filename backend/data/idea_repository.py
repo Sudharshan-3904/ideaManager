@@ -12,12 +12,12 @@ class IdeaRepository:
 
     def save_all_ideas(self, ideas):
         """Persists a list of Idea objects to storage."""
-        data_list = [idea.to_dict() for idea in ideas]
+        data_list = [idea.to_csv_dict() for idea in ideas]
         self.handler.write_all(data_list)
 
     def add_idea(self, idea):
         """Adds a single Idea object to storage."""
-        self.handler.append_row(idea.to_dict())
+        self.handler.append_row(idea.to_csv_dict())
 
     def update_idea(self, original_title, updated_idea):
         """Updates an existing idea by title."""

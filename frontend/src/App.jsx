@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, Trash2, Edit3, Save, X, Lightbulb, Users, Target, Rocket, Activity,
-  ChevronRight, MessageCircle, MoreVertical, Search, CheckCircle
+  ChevronRight, MessageCircle, MoreVertical, Search, CheckCircle,
+  StickyNote, AlertCircle, Zap, ArrowRight, List
 } from 'lucide-react';
 import * as api from './api';
 
@@ -18,7 +19,9 @@ const App = () => {
         description: '',
         target_customers: '',
         minimal_deliverables: '',
-        future_extensions: ''
+        future_extensions: '',
+        notes: [],
+        hurdles: []
     });
 
     useEffect(() => {
@@ -52,7 +55,9 @@ const App = () => {
             description: '',
             target_customers: '',
             minimal_deliverables: '',
-            future_extensions: ''
+            future_extensions: '',
+            notes: [],
+            hurdles: []
         });
     };
 
@@ -64,23 +69,87 @@ const App = () => {
             description: selectedIdea.description,
             target_customers: selectedIdea.target_customers,
             minimal_deliverables: selectedIdea.minimal_deliverables,
-            future_extensions: selectedIdea.future_extensions
+            future_extensions: selectedIdea.future_extensions,
+            notes: selectedIdea.notes || [],
+            hurdles: selectedIdea.hurdles || []
         });
+    };
+
+    const handleAddNote = () => {
+        setFormData({ ...formData, notes: [...formData.notes, ''] });
+    };
+
+    const handleNoteChange = (index, value) => {
+        const newNotes = [...formData.notes];
+        newNotes[index] = value;
+        setFormData({ ...formData, notes: newNotes });
+    };
+
+    const handleRemoveNote = (index) => {
+        setFormData({ ...formData, notes: formData.notes.filter((_, i) => i !== index) });
+    };
+
+    const handleAddHurdle = () => {
+        setFormData({ 
+            ...formData, 
+            hurdles: [...formData.hurdles, { main_setback: '', description: '', leads: [] }] 
+        });
+    };
+
+    const handleHurdleChange = (index, field, value) => {
+        const newHurdles = [...formData.hurdles];
+        newHurdles[index] = { ...newHurdles[index], [field]: value };
+        setFormData({ ...formData, hurdles: newHurdles });
+    };
+
+    const handleRemoveHurdle = (index) => {
+        setFormData({ ...formData, hurdles: formData.hurdles.filter((_, i) => i !== index) });
+    };
+
+    const handleAddLead = (hurdleIndex) => {
+        const newHurdles = [...formData.hurdles];
+        newHurdles[hurdleIndex].leads = [...newHurdles[hurdleIndex].leads, ''];
+        setFormData({ ...formData, hurdles: newHurdles });
+    };
+
+    const handleLeadChange = (hurdleIndex, leadIndex, value) => {
+        const newHurdles = [...formData.hurdles];
+        newHurdles[hurdleIndex].leads[leadIndex] = value;
+        setFormData({ ...formData, hurdles: newHurdles });
+    };
+
+    const handleRemoveLead = (hurdleIndex, leadIndex) => {
+        const newHurdles = [...formData.hurdles];
+        newHurdles[hurdleIndex].leads = newHurdles[hurdleIndex].leads.filter((_, i) => i !== leadIndex);
+        setFormData({ ...formData, hurdles: newHurdles });
     };
 
     const handleSave = async (e) => {
         e.preventDefault();
+        
+        // Clean up empty entries
+        const cleanData = {
+            ...formData,
+            notes: formData.notes.filter(n => n.trim() !== ''),
+            hurdles: formData.hurdles
+                .filter(h => h.main_setback.trim() !== '')
+                .map(h => ({
+                    ...h,
+                    leads: h.leads.filter(l => l.trim() !== '')
+                }))
+        };
+
         try {
             if (isAdding) {
-                await api.createIdea(formData);
+                await api.createIdea(cleanData);
             } else if (isEditing) {
-                await api.updateIdea(selectedIdea.title, formData);
+                await api.updateIdea(selectedIdea.title, cleanData);
             }
             await fetchIdeas();
             setIsAdding(false);
             setIsEditing(false);
             // Re-select if updated
-            const updated = await api.getIdea(formData.title);
+            const updated = await api.getIdea(cleanData.title);
             setSelectedIdea(updated);
         } catch (error) {
             alert('Error saving idea: ' + error.message);
@@ -240,6 +309,88 @@ const App = () => {
                               />
                           </div>
 
+                          {/* Notes Management */}
+                          <div className="space-y-4">
+                              <div className="flex items-center justify-between ml-2">
+                                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Thought Notes</label>
+                                  <button type="button" onClick={handleAddNote} className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 font-bold">
+                                      <Plus size={14} /> Add Note
+                                  </button>
+                              </div>
+                              <div className="space-y-2">
+                                  {formData.notes.map((note, idx) => (
+                                      <div key={idx} className="flex gap-2">
+                                          <input 
+                                              value={note}
+                                              onChange={(e) => handleNoteChange(idx, e.target.value)}
+                                              placeholder="Random thought or jotdown..."
+                                              className="flex-1 bg-slate-900/50 border border-slate-700/50 rounded-xl py-2 px-4 text-sm focus:outline-none focus:border-blue-500/50"
+                                          />
+                                          <button type="button" onClick={() => handleRemoveNote(idx)} className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg">
+                                              <Trash2 size={16} />
+                                          </button>
+                                      </div>
+                                  ))}
+                              </div>
+                          </div>
+
+                          {/* Hurdles Management */}
+                          <div className="space-y-4 pt-4 border-t border-slate-800">
+                              <div className="flex items-center justify-between ml-2">
+                                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Hurdles & Blockers</label>
+                                  <button type="button" onClick={handleAddHurdle} className="text-xs text-orange-400 hover:text-orange-300 flex items-center gap-1 font-bold">
+                                      <Plus size={14} /> Add Hurdle
+                                  </button>
+                              </div>
+                              <div className="space-y-6">
+                                  {formData.hurdles.map((hurdle, hIdx) => (
+                                      <div key={hIdx} className="p-4 bg-slate-900/30 rounded-2xl border border-slate-800 space-y-4">
+                                          <div className="flex gap-2">
+                                              <input 
+                                                  value={hurdle.main_setback}
+                                                  onChange={(e) => handleHurdleChange(hIdx, 'main_setback', e.target.value)}
+                                                  placeholder="The main setback..."
+                                                  className="flex-1 bg-slate-900/50 border border-slate-700/50 rounded-xl py-2 px-4 text-sm font-bold focus:outline-none focus:border-orange-500/50"
+                                              />
+                                              <button type="button" onClick={() => handleRemoveHurdle(hIdx)} className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg">
+                                                  <Trash2 size={16} />
+                                              </button>
+                                          </div>
+                                          <textarea 
+                                              value={hurdle.description}
+                                              onChange={(e) => handleHurdleChange(hIdx, 'description', e.target.value)}
+                                              placeholder="Detailed description of the blocker..."
+                                              className="w-full bg-slate-900/50 border border-slate-700/50 rounded-xl py-2 px-4 text-sm focus:outline-none focus:border-orange-500/50 resize-none"
+                                              rows="2"
+                                          />
+                                          
+                                          {/* Leads for this hurdle */}
+                                          <div className="pl-4 border-l-2 border-slate-800 space-y-2">
+                                              <div className="flex items-center justify-between">
+                                                  <label className="text-[10px] font-bold uppercase text-slate-600">Potential Leads/Solutions</label>
+                                                  <button type="button" onClick={() => handleAddLead(hIdx)} className="text-[10px] text-emerald-400 hover:text-emerald-300 font-bold">
+                                                      + Add Lead
+                                                  </button>
+                                              </div>
+                                              {hurdle.leads.map((lead, lIdx) => (
+                                                  <div key={lIdx} className="flex gap-2">
+                                                      <input 
+                                                          value={lead}
+                                                          onChange={(e) => handleLeadChange(hIdx, lIdx, e.target.value)}
+                                                          placeholder="A potential solution or path..."
+                                                          className="flex-1 bg-slate-900/50 border border-slate-700/50 rounded-xl py-1 px-3 text-xs focus:outline-none focus:border-emerald-500/50"
+                                                      />
+                                                      <button type="button" onClick={() => handleRemoveLead(hIdx, lIdx)} className="p-1 text-red-500 hover:bg-red-500/10 rounded-lg">
+                                                          <X size={12} />
+                                                      </button>
+                                                  </div>
+                                              ))}
+                                          </div>
+                                      </div>
+                                  ))}
+                              </div>
+                          </div>
+
                           <div className="flex gap-4 pt-6">
                               <button type="submit" className="primary flex-1 flex items-center justify-center gap-2 py-4 rounded-xl text-lg tracking-wide hover:shadow-[0_0_30px_rgba(37,117,252,0.3)]">
                                   <Save className="w-5 h-5" />
@@ -292,6 +443,24 @@ const App = () => {
                                         {selectedIdea.minimal_deliverables || 'Define the smallest possible version that provides value.'}
                                     </p>
                                 </section>
+
+                                {/* Notes Section */}
+                                <section className="card p-6 rounded-2xl bg-white/5 border border-white/5 space-y-4 hover:bg-white/10 transition-colors">
+                                    <div className="flex items-center gap-3 text-yellow-400 font-bold text-sm uppercase">
+                                        <StickyNote className="w-5 h-5" />
+                                        Thought Notes
+                                    </div>
+                                    <div className="space-y-3">
+                                        {selectedIdea.notes && selectedIdea.notes.length > 0 ? selectedIdea.notes.map((note, i) => (
+                                            <div key={i} className="flex gap-3 bg-slate-900/40 p-3 rounded-xl border border-white/5">
+                                                <div className="h-1.5 w-1.5 rounded-full bg-yellow-500 mt-1.5 shrink-0" />
+                                                <p className="text-sm text-slate-300">{note}</p>
+                                            </div>
+                                        )) : (
+                                            <p className="text-xs text-slate-500 italic">No notes recorded for this concept yet.</p>
+                                        )}
+                                    </div>
+                                </section>
                             </div>
 
                             <div className="space-y-8">
@@ -305,6 +474,45 @@ const App = () => {
                                     </p>
                                 </section>
 
+                                {/* Hurdles Section */}
+                                <section className="card p-6 rounded-2xl bg-white/5 border border-white/5 space-y-4 hover:bg-white/10 transition-colors">
+                                    <div className="flex items-center gap-3 text-orange-400 font-bold text-sm uppercase">
+                                        <AlertCircle className="w-5 h-5" />
+                                        Project Hurdles
+                                    </div>
+                                    <div className="space-y-4">
+                                        {selectedIdea.hurdles && selectedIdea.hurdles.length > 0 ? selectedIdea.hurdles.map((hurdle, i) => (
+                                            <div key={i} className="bg-slate-900/40 p-4 rounded-xl border border-orange-500/10 space-y-3">
+                                                <div className="flex justify-between items-start">
+                                                    <h4 className="font-bold text-slate-200">{hurdle.main_setback}</h4>
+                                                    <span className="text-[10px] text-slate-600 font-mono tracking-tighter">{hurdle.date}</span>
+                                                </div>
+                                                <p className="text-xs text-slate-400 leading-relaxed">{hurdle.description}</p>
+                                                
+                                                {/* Leads visualization */}
+                                                {hurdle.leads && hurdle.leads.length > 0 && (
+                                                    <div className="pt-2 border-t border-slate-800 space-y-2">
+                                                        <div className="flex items-center gap-2 text-[10px] font-bold text-emerald-500 uppercase">
+                                                            <Zap className="w-3 h-3" />
+                                                            Potential Leads
+                                                        </div>
+                                                        <div className="grid gap-1.5">
+                                                            {hurdle.leads.map((lead, j) => (
+                                                                <div key={j} className="flex items-center gap-2 text-[11px] text-emerald-200/70 bg-emerald-500/5 py-1 px-2 rounded-lg border border-emerald-500/10">
+                                                                    <ArrowRight className="w-2.5 h-2.5" />
+                                                                    {lead}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )) : (
+                                            <p className="text-xs text-slate-500 italic">No hurdles identified. Path is clear.</p>
+                                        )}
+                                    </div>
+                                </section>
+
                                 <section className="card p-6 rounded-2xl bg-blue-900/10 border border-blue-500/10 space-y-4">
                                     <div className="flex items-center gap-3 text-blue-400 font-bold text-sm uppercase">
                                         <Activity className="w-5 h-5" />
@@ -312,10 +520,10 @@ const App = () => {
                                     </div>
                                     <div className="flex justify-between text-xs text-slate-500">
                                         <span>Status</span>
-                                        <span className="text-blue-400 font-bold uppercase">Draft Analysis</span>
+                                        <span className="text-blue-400 font-bold uppercase">{selectedIdea.hurdles?.length > 0 ? 'Blocked / Solving' : 'Clear / Analysis'}</span>
                                     </div>
                                     <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mt-2">
-                                        <div className="bg-blue-500 h-full w-1/3 shadow-[0_0_10px_#3b82f6]"></div>
+                                        <div className={`bg-blue-500 h-full shadow-[0_0_10px_#3b82f6] transition-all duration-1000 ${selectedIdea.hurdles?.length > 0 ? 'w-2/3' : 'w-1/3'}`}></div>
                                     </div>
                                 </section>
                             </div>

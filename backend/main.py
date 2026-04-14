@@ -20,12 +20,19 @@ app.add_middleware(
 # Initialize Repository
 repo = IdeaRepository(os.path.join(os.path.dirname(__file__), 'ideas.csv'))
 
+class HurdleModel(BaseModel):
+    main_setback: str
+    description: Optional[str] = ""
+    leads: Optional[List[str]] = []
+
 class IdeaModel(BaseModel):
     title: str
     description: Optional[str] = ""
     target_customers: Optional[str] = ""
     minimal_deliverables: Optional[str] = ""
     future_extensions: Optional[str] = ""
+    hurdles: Optional[List[HurdleModel]] = []
+    notes: Optional[List[str]] = []
 
 @app.get("/ideas", response_model=List[dict])
 def list_ideas():
@@ -47,7 +54,9 @@ def add_idea(idea: IdeaModel):
         description=idea.description,
         target_customers=idea.target_customers,
         minimal_deliverables=idea.minimal_deliverables,
-        future_extensions=idea.future_extensions
+        future_extensions=idea.future_extensions,
+        hurdles=[Hurdle(main_setback=h.main_setback, description=h.description, leads=h.leads) for h in idea.hurdles] if idea.hurdles else [],
+        notes=idea.notes
     )
     repo.add_idea(new_idea)
     return {"status": "success", "message": f"Idea '{idea.title}' created."}
@@ -59,7 +68,9 @@ def update_idea(original_title: str, idea: IdeaModel):
         description=idea.description,
         target_customers=idea.target_customers,
         minimal_deliverables=idea.minimal_deliverables,
-        future_extensions=idea.future_extensions
+        future_extensions=idea.future_extensions,
+        hurdles=[Hurdle(main_setback=h.main_setback, description=h.description, leads=h.leads) for h in idea.hurdles] if idea.hurdles else [],
+        notes=idea.notes
     )
     repo.update_idea(original_title, updated_idea)
     return {"status": "success", "message": f"Idea '{original_title}' updated."}
