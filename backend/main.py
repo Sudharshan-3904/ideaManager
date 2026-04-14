@@ -1,4 +1,5 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
@@ -36,6 +37,7 @@ class IdeaModel(BaseModel):
     future_extensions: Optional[str] = ""
     hurdles: Optional[List[HurdleModel]] = []
     notes: Optional[List[str]] = []
+    tags: Optional[List[str]] = []
     architecture: Optional[Dict[str, Any]] = {"nodes": [], "edges": []}
 
 
@@ -69,6 +71,7 @@ def add_idea(idea: IdeaModel):
             ) for h in idea.hurdles
         ] if idea.hurdles else [],
         notes=idea.notes,
+        tags=idea.tags,
         architecture=idea.architecture
     )
     repo.add_idea(new_idea)
@@ -91,6 +94,7 @@ def update_idea(original_title: str, idea: IdeaModel):
             ) for h in idea.hurdles
         ] if idea.hurdles else [],
         notes=idea.notes,
+        tags=idea.tags,
         architecture=idea.architecture
     )
     repo.update_idea(original_title, updated_idea)
@@ -100,6 +104,23 @@ def update_idea(original_title: str, idea: IdeaModel):
 def delete_idea(title: str):
     repo.delete_idea(title)
     return {"status": "success", "message": f"Idea '{title}' deleted."}
+
+@app.get("/export")
+def export_ideas():
+    file_path = os.path.join(os.path.dirname(__file__), 'ideas.csv')
+    return FileResponse(path=file_path, filename="ideas_export.csv", media_type='text/csv')
+
+@app.post("/import")
+async def import_ideas(file: UploadFile = File(...)):
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="Only CSV files are supported")
+    
+    file_path = os.path.join(os.path.dirname(__file__), 'ideas.csv')
+    content = await file.read()
+    with open(file_path, 'wb') as f:
+        f.write(content)
+    
+    return {"status": "success", "message": "Ideas imported successfully."}
 
 if __name__ == "__main__":
     import uvicorn

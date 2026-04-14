@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Plus, Trash2, Edit3, Save, X, Lightbulb, Users, Target, Rocket, Activity,
   ChevronRight, MessageCircle, MoreVertical, Search, CheckCircle,
-  StickyNote, AlertCircle, Zap, ArrowRight, List
+  StickyNote, AlertCircle, Zap, ArrowRight, List, Download, Upload, Filter, Tag as TagIcon
 } from 'lucide-react';
 import * as api from './api';
 import ArchitectureDiagram from './components/ArchitectureDiagram';
@@ -20,6 +20,8 @@ const App = () => {
     const [quickHurdle, setQuickHurdle] = useState({ title: '', desc: '' });
     const [isQuickAddingNote, setIsQuickAddingNote] = useState(false);
     const [isQuickAddingHurdle, setIsQuickAddingHurdle] = useState(false);
+    const [sortBy, setSortBy] = useState('title'); // 'title' or 'hurdles'
+    const [tagFilter, setTagFilter] = useState('all');
 
     
     // New Idea Form State
@@ -30,7 +32,8 @@ const App = () => {
         minimal_deliverables: '',
         future_extensions: '',
         notes: [],
-        hurdles: []
+        hurdles: [],
+        tags: []
     });
 
     useEffect(() => {
@@ -70,7 +73,8 @@ const App = () => {
             minimal_deliverables: '',
             future_extensions: '',
             notes: [],
-            hurdles: []
+            hurdles: [],
+            tags: []
         });
     };
 
@@ -84,7 +88,8 @@ const App = () => {
             minimal_deliverables: selectedIdea.minimal_deliverables,
             future_extensions: selectedIdea.future_extensions,
             notes: selectedIdea.notes || [],
-            hurdles: selectedIdea.hurdles || []
+            hurdles: selectedIdea.hurdles || [],
+            tags: selectedIdea.tags || []
         });
     };
 
@@ -228,10 +233,51 @@ const App = () => {
         }
     };
 
-    const filteredIdeas = ideas.filter(i => 
-        i.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        i.description.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const handleQuickSaveHurdle = async () => {
+        if (!quickHurdle.title.trim()) return;
+        try {
+            const newHurdle = { 
+                main_setback: quickHurdle.title, 
+                description: quickHurdle.desc, 
+                leads: [] 
+            };
+            const updatedIdea = { ...selectedIdea, hurdles: [...(selectedIdea.hurdles || []), newHurdle] };
+            await api.updateIdea(selectedIdea.title, updatedIdea);
+            await fetchIdeas(selectedIdea.title);
+            setQuickHurdle({ title: '', desc: '' });
+            setIsQuickAddingHurdle(false);
+        } catch (error) {
+            alert('Error adding hurdle: ' + error.message);
+        }
+    };
+
+    const handleImport = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+            await api.importIdeas(file);
+            await fetchIdeas();
+            alert('Ideas imported successfully!');
+        } catch (error) {
+            alert('Failed to import: ' + error.message);
+        }
+    };
+
+    const allTags = Array.from(new Set(ideas.flatMap(i => i.tags || [])));
+
+    const filteredAndSortedIdeas = ideas
+        .filter(i => {
+            const matchesSearch = i.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                i.description.toLowerCase().includes(searchQuery.toLowerCase());
+            const matchesTag = tagFilter === 'all' || (i.tags && i.tags.includes(tagFilter));
+            return matchesSearch && matchesTag;
+        })
+        .sort((a, b) => {
+            if (sortBy === 'title') return a.title.localeCompare(b.title);
+            if (sortBy === 'hurdles') return (b.hurdles?.length || 0) - (a.hurdles?.length || 0);
+            return 0;
+        });
+
 
     return (
         <div className="flex h-screen w-full bg-[#0a0b1e] text-slate-200 font-sans overflow-hidden">
@@ -244,11 +290,33 @@ const App = () => {
                             <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
                                 IdeaManager
                             </span>
-                        </div>
-                        <div className="flex bg-slate-900/50 p-1 rounded-lg border border-slate-700/50 invisible">
-                            <button className="p-1.5 rounded-md text-slate-500"><List size={16} /></button>
+                        <div className="flex bg-slate-900/50 p-1 rounded-lg border border-slate-700/50">
+                            <button onClick={() => api.exportIdeas()} title="Export CSV" className="p-1.5 rounded-md text-slate-500 hover:text-blue-400"><Download size={16} /></button>
+                            <label className="p-1.5 rounded-md text-slate-500 hover:text-green-400 cursor-pointer">
+                                <Upload size={16} />
+                                <input type="file" className="hidden" accept=".csv" onChange={handleImport} />
+                            </label>
                         </div>
                     </div>
+                </div>
+
+                <div className="px-4 py-2 border-b border-slate-700/30 flex gap-2">
+                    <select 
+                        value={tagFilter} 
+                        onChange={(e) => setTagFilter(e.target.value)} 
+                        className="bg-slate-900/50 border border-slate-700/50 rounded-lg py-1 px-2 text-[10px] uppercase font-bold text-slate-400 focus:outline-none"
+                    >
+                        <option value="all">Everywhere</option>
+                        {allTags.map(tag => <option key={tag} value={tag}>{tag}</option>)}
+                    </select>
+                    <select 
+                        value={sortBy} 
+                        onChange={(e) => setSortBy(e.target.value)} 
+                        className="bg-slate-900/50 border border-slate-700/50 rounded-lg py-1 px-2 text-[10px] uppercase font-bold text-slate-400 focus:outline-none"
+                    >
+                        <option value="title">A-Z</option>
+                        <option value="hurdles">By Risk (Hurdles)</option>
+                    </select>
                 </div>
 
                 <div className="p-4 flex flex-col gap-3 flex-1 overflow-y-auto custom-scrollbar">
@@ -264,7 +332,7 @@ const App = () => {
                     </div>
 
                     <div className="flex flex-col gap-1 mt-2">
-                        {filteredIdeas.length > 0 ? filteredIdeas.map((idea) => (
+                        {filteredAndSortedIdeas.length > 0 ? filteredAndSortedIdeas.map((idea) => (
                             <div 
                                 key={idea.title}
                                 onClick={() => handleSelectIdea(idea)}
@@ -275,12 +343,17 @@ const App = () => {
                                 }`}
                             >
                                 <div className="flex flex-col overflow-hidden">
-                                    <span className={`font-medium truncate ${selectedIdea?.title === idea.title ? 'text-blue-300' : 'text-slate-300'}`}>
-                                        {idea.title}
-                                    </span>
-                                    <span className="text-xs text-slate-500 truncate mt-0.5">
-                                        {idea.target_customers || 'No target profile'}
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <span className={`font-medium truncate ${selectedIdea?.title === idea.title ? 'text-blue-300' : 'text-slate-300'}`}>
+                                            {idea.title}
+                                        </span>
+                                        {idea.hurdles?.length > 0 && <span className="bg-orange-500/20 text-orange-400 text-[8px] px-1 rounded border border-orange-500/30 font-bold">{idea.hurdles.length}</span>}
+                                    </div>
+                                    <div className="flex gap-1 mt-0.5 overflow-hidden">
+                                        {(idea.tags || []).slice(0, 2).map((tag, idx) => (
+                                            <span key={idx} className="text-[8px] text-slate-600 border border-slate-800 px-1 rounded uppercase tracking-tighter">{tag}</span>
+                                        ))}
+                                    </div>
                                 </div>
                                 <ChevronRight className={`w-4 h-4 transition-transform ${selectedIdea?.title === idea.title ? 'translate-x-0 opacity-100 text-blue-400' : '-translate-x-2 opacity-0'}`} />
                             </div>
@@ -435,6 +508,32 @@ const App = () => {
                                       </div>
                                   ))}
                               </div>
+                          </div>
+
+                          <div className="space-y-4 pt-4 border-t border-slate-800">
+                                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-2">Categories (Tags)</label>
+                                <div className="flex gap-2 flex-wrap ml-2">
+                                    {(formData.tags || []).map((tag, idx) => (
+                                        <span key={idx} className="bg-slate-800 text-slate-300 px-3 py-1 rounded-full text-xs flex items-center gap-2">
+                                            {tag}
+                                            <X size={12} className="cursor-pointer hover:text-red-400" onClick={() => setFormData({...formData, tags: formData.tags.filter((_, i) => i !== idx)})} />
+                                        </span>
+                                    ))}
+                                    <input 
+                                        placeholder="Add category..." 
+                                        className="bg-transparent border-b border-slate-700 text-xs py-1 px-2 focus:outline-none focus:border-blue-400 transition-all w-32"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && e.target.value.trim()) {
+                                                e.preventDefault();
+                                                const val = e.target.value.trim();
+                                                if (!formData.tags.includes(val)) {
+                                                    setFormData({...formData, tags: [...formData.tags, val]});
+                                                }
+                                                e.target.value = '';
+                                            }
+                                        }}
+                                    />
+                                </div>
                           </div>
 
                           <div className="flex gap-4 pt-6">

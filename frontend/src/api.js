@@ -34,4 +34,19 @@ export const deleteIdea = async (title) => {
     return response.data;
 };
 
+export const exportIdeas = () => {
+    window.location.href = `${API_BASE_URL}/export`;
+};
+
+export const importIdeas = async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/import', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+    return response.data;
+};
+
 export default api;

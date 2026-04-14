@@ -3,7 +3,7 @@ import json
 
 
 class Idea:
-    def __init__(self, title="", description="", target_customers="", minimal_deliverables="", future_extensions="", hurdles=None, notes=None, architecture=None):
+    def __init__(self, title="", description="", target_customers="", minimal_deliverables="", future_extensions="", hurdles=None, notes=None, architecture=None, tags=None):
 
         self.title = title
         self.description = description
@@ -13,6 +13,7 @@ class Idea:
         self.hurdles = hurdles if hurdles is not None else []
         self.notes = notes if notes is not None else []
         self.architecture = architecture if architecture is not None else {"nodes": [], "edges": []}
+        self.tags = tags if tags is not None else []
 
 
     def add_hurdle(self, hurdle):
@@ -38,6 +39,9 @@ class Idea:
         
         arch_str = data.get('architecture', "")
         architecture = json.loads(arch_str) if arch_str else {"nodes": [], "edges": []}
+        
+        tags_str = data.get('tags', "")
+        tags = tags_str.split(';;') if tags_str else []
 
         return cls(
             title=data.get('title', ""),
@@ -47,7 +51,8 @@ class Idea:
             future_extensions=data.get('future_extensions', ""),
             hurdles=hurdles,
             notes=notes,
-            architecture=architecture
+            architecture=architecture,
+            tags=tags
         )
 
     def to_dict(self):
@@ -67,13 +72,15 @@ class Idea:
                 } for h in self.hurdles
             ],
             'notes': self.notes,
-            'architecture': self.architecture
+            'architecture': self.architecture,
+            'tags': self.tags
         }
 
     def to_csv_dict(self):
         """Serializes the Idea instance to a dictionary for CSV storage."""
         hurdles_str = ";;".join([h.serialize() for h in self.hurdles])
         notes_str = ";;".join(self.notes)
+        tags_str = ";;".join(self.tags)
         return {
             'title': self.title,
             'description': self.description,
@@ -82,7 +89,8 @@ class Idea:
             'future_extensions': self.future_extensions,
             'hurdles': hurdles_str,
             'notes': notes_str,
-            'architecture': json.dumps(self.architecture)
+            'architecture': json.dumps(self.architecture),
+            'tags': tags_str
         }
 
     def __repr__(self):

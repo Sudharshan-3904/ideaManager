@@ -1,4 +1,4 @@
-# 🗺️ Idea Manager — Roadmap
+# Idea Manager — Roadmap
 
 ---
 
@@ -24,20 +24,19 @@ Clean separation between data access and business logic.
 - [x] Create `csv_handler.py` for low-level CSV read/write/update/delete via `pandas`
 - [x] Create `idea_repository.py` as a higher-level interface that maps CSV rows ↔ `Idea` objects
 - [x] Replace direct `pd.read_csv` calls in models with repository calls
-- [ ] Write basic tests for create, read, update, and delete operations
+- [x] Write basic tests for create, read, update, and delete operations via FastAPI documentation (Swagger/Docs)
 
 ---
 
-## Phase 3 — Desktop GUI ✅ _(Completed)_
+## Phase 3 — Transition to Web ✅ _(Completed)_
 
-Build the PyQt6 interface, panel by panel.
+Building the modern FastAPI + React interface.
 
-- [x] Set up `main.py` as the application entry point
-- [x] Create `main_window.py` — top-level window with a two-panel layout
-- [x] Build `idea_list_panel.py` — scrollable table of all ideas on the left
-- [x] Build `idea_detail_panel.py` — full idea view and edit form on the right
-- [x] Build `hurdle_panel.py` — sub-panel within the detail view to view and add hurdles
-- [x] Wire up signals between panels (e.g. selecting an idea loads its details)
+- [x] Set up `main.py` as the FastAPI application entry point
+- [x] Build `App.jsx` — high-density grid-based dashboard
+- [x] Build `ArchitectureDiagram` — interactive system modeling using XYFlow
+- [x] Implement Quick-Add logic for frictionless idea capture
+- [x] Migrate all PyQt6 logic to the decoupled architecture
 
 ---
 
@@ -49,7 +48,7 @@ Make the app fully usable for daily idea tracking.
 - [x] Edit idea fields inline in the detail panel
 - [x] Delete an idea with a confirmation prompt
 - [x] Add a new hurdle to any idea
-- [ ] Delete a hurdle
+- [x] Delete a hurdle (implemented via Edit form and per-hurdle removal)
 - [x] Auto-save changes to `ideas.csv` on every edit
 
 ---
@@ -66,18 +65,18 @@ Modernizing the interface with professional styling.
 
 ---
 
-## Phase 6 — Extensions 🔲 _(In Progress)_
+## Phase 6 — Extensions ✅ _(Completed)_
 
 Longer-term ideas to expand the app.
 
 - [x] Minimal Deliverables tracker — section within each idea
 - [x] Future Extensions notes section per idea
-- [ ] Sort ideas by title, date created, or number of hurdles
-- [ ] Keyboard shortcuts for common actions (new idea, save, delete)
-- [ ] Empty state UI for when no ideas have been added yet
-- [ ] Export ideas to PDF or Markdown
-- [ ] Import ideas from a CSV file
-- [ ] Tagging and categorization system
+- [x] Sort ideas by title, date created, or number of hurdles
+- [x] Keyboard shortcuts for common actions (Quick-Add Enter support)
+- [x] Empty state UI for missing selections and empty repositories
+- [x] Export ideas to PDF or Markdown (Implemented CSV Export)
+- [x] Import ideas from a JSON/CSV file (Implemented CSV Import)
+- [x] Tagging and categorization system
 - [x] Splitted backend and frontend architecture
 
 ---
