@@ -5,6 +5,9 @@ import {
   StickyNote, AlertCircle, Zap, ArrowRight, List
 } from 'lucide-react';
 import * as api from './api';
+import ArchitectureDiagram from './components/ArchitectureDiagram';
+import { Network, Share2 } from 'lucide-react';
+
 
 const App = () => {
     const [ideas, setIdeas] = useState([]);
@@ -12,6 +15,12 @@ const App = () => {
     const [isAdding, setIsAdding] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [viewMode, setViewMode] = useState('ideas'); // 'ideas' or 'architecture'
+    const [quickNote, setQuickNote] = useState('');
+    const [quickHurdle, setQuickHurdle] = useState({ title: '', desc: '' });
+    const [isQuickAddingNote, setIsQuickAddingNote] = useState(false);
+    const [isQuickAddingHurdle, setIsQuickAddingHurdle] = useState(false);
+
     
     // New Idea Form State
     const [formData, setFormData] = useState({
@@ -28,11 +37,15 @@ const App = () => {
         fetchIdeas();
     }, []);
 
-    const fetchIdeas = async () => {
+    const fetchIdeas = async (shouldSelectUpdated = null) => {
         try {
             const data = await api.getIdeas();
             setIdeas(data);
-            if (data.length > 0 && !selectedIdea) {
+            
+            if (shouldSelectUpdated) {
+                const updated = data.find(i => i.title.trim().toLowerCase() === shouldSelectUpdated.trim().toLowerCase());
+                if (updated) setSelectedIdea(updated);
+            } else if (data.length > 0 && !selectedIdea) {
                 setSelectedIdea(data[0]);
             }
         } catch (error) {
@@ -156,6 +169,22 @@ const App = () => {
         }
     };
 
+    const handleSaveArchitecture = async (newArchitecture) => {
+        if (!selectedIdea) return;
+        
+        try {
+            const updatedIdea = {
+                ...selectedIdea,
+                architecture: newArchitecture
+            };
+            await api.updateIdea(selectedIdea.title, updatedIdea);
+            await fetchIdeas();
+            setSelectedIdea(updatedIdea);
+        } catch (error) {
+            alert('Error saving architecture: ' + error.message);
+        }
+    };
+
     const handleDelete = async (title) => {
         if (window.confirm(`Are you sure you want to delete "${title}"?`)) {
             try {
@@ -165,6 +194,37 @@ const App = () => {
             } catch (error) {
                 alert('Error deleting idea: ' + error.message);
             }
+        }
+    };
+
+    const handleQuickSaveNote = async () => {
+        if (!quickNote.trim()) return;
+        try {
+            const updatedIdea = { ...selectedIdea, notes: [...(selectedIdea.notes || []), quickNote] };
+            await api.updateIdea(selectedIdea.title, updatedIdea);
+            await fetchIdeas(selectedIdea.title);
+            setQuickNote('');
+            setIsQuickAddingNote(false);
+        } catch (error) {
+            alert('Error adding note: ' + error.message);
+        }
+    };
+
+    const handleQuickSaveHurdle = async () => {
+        if (!quickHurdle.title.trim()) return;
+        try {
+            const newHurdle = { 
+                main_setback: quickHurdle.title, 
+                description: quickHurdle.desc, 
+                leads: [] 
+            };
+            const updatedIdea = { ...selectedIdea, hurdles: [...(selectedIdea.hurdles || []), newHurdle] };
+            await api.updateIdea(selectedIdea.title, updatedIdea);
+            await fetchIdeas(selectedIdea.title);
+            setQuickHurdle({ title: '', desc: '' });
+            setIsQuickAddingHurdle(false);
+        } catch (error) {
+            alert('Error adding hurdle: ' + error.message);
         }
     };
 
@@ -184,6 +244,9 @@ const App = () => {
                             <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
                                 IdeaManager
                             </span>
+                        </div>
+                        <div className="flex bg-slate-900/50 p-1 rounded-lg border border-slate-700/50 invisible">
+                            <button className="p-1.5 rounded-md text-slate-500"><List size={16} /></button>
                         </div>
                     </div>
                 </div>
@@ -255,6 +318,7 @@ const App = () => {
                       </div>
 
                       <form onSubmit={handleSave} className="space-y-6">
+                          {/* ... form content same as before ... */}
                           <div className="space-y-2">
                               <label className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-2">Title</label>
                               <input 
@@ -309,7 +373,6 @@ const App = () => {
                               />
                           </div>
 
-                          {/* Notes Management */}
                           <div className="space-y-4">
                               <div className="flex items-center justify-between ml-2">
                                   <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Thought Notes</label>
@@ -334,7 +397,6 @@ const App = () => {
                               </div>
                           </div>
 
-                          {/* Hurdles Management */}
                           <div className="space-y-4 pt-4 border-t border-slate-800">
                               <div className="flex items-center justify-between ml-2">
                                   <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Hurdles & Blockers</label>
@@ -363,26 +425,10 @@ const App = () => {
                                               className="w-full bg-slate-900/50 border border-slate-700/50 rounded-xl py-2 px-4 text-sm focus:outline-none focus:border-orange-500/50 resize-none"
                                               rows="2"
                                           />
-                                          
-                                          {/* Leads for this hurdle */}
                                           <div className="pl-4 border-l-2 border-slate-800 space-y-2">
-                                              <div className="flex items-center justify-between">
-                                                  <label className="text-[10px] font-bold uppercase text-slate-600">Potential Leads/Solutions</label>
-                                                  <button type="button" onClick={() => handleAddLead(hIdx)} className="text-[10px] text-emerald-400 hover:text-emerald-300 font-bold">
-                                                      + Add Lead
-                                                  </button>
-                                              </div>
                                               {hurdle.leads.map((lead, lIdx) => (
                                                   <div key={lIdx} className="flex gap-2">
-                                                      <input 
-                                                          value={lead}
-                                                          onChange={(e) => handleLeadChange(hIdx, lIdx, e.target.value)}
-                                                          placeholder="A potential solution or path..."
-                                                          className="flex-1 bg-slate-900/50 border border-slate-700/50 rounded-xl py-1 px-3 text-xs focus:outline-none focus:border-emerald-500/50"
-                                                      />
-                                                      <button type="button" onClick={() => handleRemoveLead(hIdx, lIdx)} className="p-1 text-red-500 hover:bg-red-500/10 rounded-lg">
-                                                          <X size={12} />
-                                                      </button>
+                                                      <input value={lead} onChange={(e) => handleLeadChange(hIdx, lIdx, e.target.value)} className="flex-1 bg-slate-900/50 border border-slate-700/50 rounded-xl py-1 px-3 text-xs focus:outline-none" />
                                                   </div>
                                               ))}
                                           </div>
@@ -392,7 +438,7 @@ const App = () => {
                           </div>
 
                           <div className="flex gap-4 pt-6">
-                              <button type="submit" className="primary flex-1 flex items-center justify-center gap-2 py-4 rounded-xl text-lg tracking-wide hover:shadow-[0_0_30px_rgba(37,117,252,0.3)]">
+                              <button type="submit" className="primary flex-1 flex items-center justify-center gap-2 py-4 rounded-xl text-lg font-bold">
                                   <Save className="w-5 h-5" />
                                   Commit Concept
                               </button>
@@ -400,144 +446,140 @@ const App = () => {
                       </form>
                   </div>
                 ) : selectedIdea ? (
-                    <div className="p-0 h-full flex flex-col animate-in fade-in duration-700">
-                        {/* Detail Header */}
-                        <div className="p-8 border-b border-slate-700/50 flex items-start justify-between bg-gradient-to-br from-indigo-900/10 to-transparent">
+                    <div className="p-0 h-full flex flex-col animate-in fade-in duration-700 relative">
+                        {/* Detail Header - Persistent */}
+                        <div className="p-8 border-b border-slate-700/50 flex items-start justify-between bg-gradient-to-br from-indigo-900/10 to-transparent sticky top-0 bg-[#0a0b1e]/80 backdrop-blur-xl z-20">
                             <div className="flex-1">
                                 <div className="flex items-center gap-2 text-blue-400 font-bold text-xs uppercase tracking-tighter mb-2">
                                     <CheckCircle className="w-3 h-3" />
                                     Active Project Data
                                 </div>
                                 <h1 className="text-4xl font-extrabold text-white tracking-tight">{selectedIdea.title}</h1>
-                                <p className="text-slate-400 mt-3 max-w-2xl leading-relaxed">{selectedIdea.description || 'No description provided yet.'}</p>
+                                {viewMode === 'ideas' && <p className="text-slate-400 mt-3 max-w-2xl leading-relaxed">{selectedIdea.description || 'No description provided yet.'}</p>}
                             </div>
                             <div className="flex gap-2">
-                                <button onClick={handleEditClick} className="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl transition-all border border-slate-700/50 hover:border-blue-500/50 text-blue-300">
+                                <div className="flex bg-slate-900/50 p-1 rounded-xl border border-slate-700/50 mr-2">
+                                    <button onClick={() => setViewMode('ideas')} className={`px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold transition-all ${viewMode === 'ideas' ? 'bg-blue-600 shadow-lg text-white' : 'text-slate-400 hover:text-slate-200'}`}>
+                                        <List size={16} /> Dashboard
+                                    </button>
+                                    <button onClick={() => setViewMode('architecture')} className={`px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold transition-all ${viewMode === 'architecture' ? 'bg-indigo-600 shadow-lg text-white' : 'text-slate-400 hover:text-slate-200'}`}>
+                                        <Network size={16} /> Architecture
+                                    </button>
+                                </div>
+                                <button onClick={handleEditClick} className="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl transition-all border border-slate-700/50 text-blue-300">
                                     <Edit3 size={20} />
                                 </button>
-                                <button onClick={() => handleDelete(selectedIdea.title)} className="p-3 bg-red-950/20 hover:bg-red-900/40 rounded-xl transition-all border border-red-500/20 hover:border-red-500/50 text-red-500">
+                                <button onClick={() => handleDelete(selectedIdea.title)} className="p-3 bg-red-950/20 hover:bg-red-900/40 rounded-xl transition-all border border-red-500/20 text-red-500">
                                     <Trash2 size={20} />
                                 </button>
                             </div>
                         </div>
 
-                        {/* Panels */}
-                        <div className="flex-1 p-8 grid grid-cols-2 gap-8 content-start overflow-y-auto custom-scrollbar">
-                            <div className="space-y-8">
-                                <section className="card p-6 rounded-2xl bg-white/5 border border-white/5 space-y-4 hover:bg-white/10 transition-colors">
-                                    <div className="flex items-center gap-3 text-indigo-400 font-bold text-sm uppercase">
-                                        <Users className="w-5 h-5" />
-                                        Target Market
-                                    </div>
-                                    <p className="text-slate-300 leading-relaxed font-medium">
-                                        {selectedIdea.target_customers || 'Who will derive value from this solution? Profile them here.'}
-                                    </p>
-                                </section>
-
-                                <section className="card p-6 rounded-2xl bg-white/5 border border-white/5 space-y-4 hover:bg-white/10 transition-colors">
-                                    <div className="flex items-center gap-3 text-emerald-400 font-bold text-sm uppercase">
-                                        <Rocket className="w-5 h-5" />
-                                        MVP Roadmap
-                                    </div>
-                                    <p className="text-slate-300 leading-relaxed">
-                                        {selectedIdea.minimal_deliverables || 'Define the smallest possible version that provides value.'}
-                                    </p>
-                                </section>
-
-                                {/* Notes Section */}
-                                <section className="card p-6 rounded-2xl bg-white/5 border border-white/5 space-y-4 hover:bg-white/10 transition-colors">
-                                    <div className="flex items-center gap-3 text-yellow-400 font-bold text-sm uppercase">
-                                        <StickyNote className="w-5 h-5" />
-                                        Thought Notes
-                                    </div>
-                                    <div className="space-y-3">
-                                        {selectedIdea.notes && selectedIdea.notes.length > 0 ? selectedIdea.notes.map((note, i) => (
-                                            <div key={i} className="flex gap-3 bg-slate-900/40 p-3 rounded-xl border border-white/5">
-                                                <div className="h-1.5 w-1.5 rounded-full bg-yellow-500 mt-1.5 shrink-0" />
-                                                <p className="text-sm text-slate-300">{note}</p>
-                                            </div>
-                                        )) : (
-                                            <p className="text-xs text-slate-500 italic">No notes recorded for this concept yet.</p>
-                                        )}
-                                    </div>
-                                </section>
+                        {viewMode === 'architecture' ? (
+                            <div className="p-8 flex-1 flex flex-col animate-in fade-in duration-500">
+                                <div className="flex-1 min-h-[500px]">
+                                    <ArchitectureDiagram architecture={selectedIdea?.architecture} onSave={handleSaveArchitecture} />
+                                </div>
                             </div>
+                        ) : (
+                            <div className="flex-1 p-8 overflow-y-auto custom-scrollbar space-y-8">
+                                {/* Dashboard View Sections - Info panels and Side-by-Side bottom */}
+                                <div className="grid grid-cols-3 gap-8 content-start">
+                                    <section className="card p-6 rounded-2xl bg-white/5 border border-white/5 space-y-4 hover:bg-white/10 transition-colors">
+                                        <div className="flex items-center gap-3 text-indigo-400 font-bold text-sm uppercase"><Users className="w-5 h-5" />Target Market</div>
+                                        <p className="text-slate-300 leading-relaxed font-medium">{selectedIdea.target_customers || 'Who will derive value?'}</p>
+                                    </section>
+                                    <section className="card p-6 rounded-2xl bg-white/5 border border-white/5 space-y-4 hover:bg-white/10 transition-colors"><div className="flex items-center gap-3 text-emerald-400 font-bold text-sm uppercase"><Rocket className="w-5 h-5" />MVP Roadmap</div><p className="text-slate-300 leading-relaxed">{selectedIdea.minimal_deliverables || 'Define MVP'}</p></section>
+                                    <section className="card p-6 rounded-2xl bg-white/5 border border-white/5 space-y-4 hover:bg-white/10 transition-colors"><div className="flex items-center gap-3 text-purple-400 font-bold text-sm uppercase"><MoreVertical className="w-5 h-5" />Visionary Extensions</div><p className="text-slate-300 leading-relaxed">{selectedIdea.future_extensions || 'Expansion opportunities'}</p></section>
+                                </div>
 
-                            <div className="space-y-8">
-                                <section className="card p-6 rounded-2xl bg-white/5 border border-white/5 space-y-4 hover:bg-white/10 transition-colors">
-                                    <div className="flex items-center gap-3 text-purple-400 font-bold text-sm uppercase">
-                                        <MoreVertical className="w-5 h-5" />
-                                        Visionary Extensions
-                                    </div>
-                                    <p className="text-slate-300 leading-relaxed">
-                                        {selectedIdea.future_extensions || 'Log future expansion opportunities beyond the initial launch.'}
-                                    </p>
-                                </section>
-
-                                {/* Hurdles Section */}
-                                <section className="card p-6 rounded-2xl bg-white/5 border border-white/5 space-y-4 hover:bg-white/10 transition-colors">
-                                    <div className="flex items-center gap-3 text-orange-400 font-bold text-sm uppercase">
-                                        <AlertCircle className="w-5 h-5" />
-                                        Project Hurdles
-                                    </div>
-                                    <div className="space-y-4">
-                                        {selectedIdea.hurdles && selectedIdea.hurdles.length > 0 ? selectedIdea.hurdles.map((hurdle, i) => (
-                                            <div key={i} className="bg-slate-900/40 p-4 rounded-xl border border-orange-500/10 space-y-3">
-                                                <div className="flex justify-between items-start">
-                                                    <h4 className="font-bold text-slate-200">{hurdle.main_setback}</h4>
-                                                    <span className="text-[10px] text-slate-600 font-mono tracking-tighter">{hurdle.date}</span>
+                                <div className="grid grid-cols-2 gap-8 pt-4 border-t border-slate-800">
+                                    <section className="card p-6 rounded-2xl bg-white/5 border border-white/5 space-y-4 hover:bg-white/10 transition-colors">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3 text-yellow-400 font-bold text-sm uppercase"><StickyNote className="w-5 h-5" />Thought Notes</div>
+                                            {!isQuickAddingNote && <button onClick={() => setIsQuickAddingNote(true)} className="text-[10px] text-blue-400 hover:text-blue-300 uppercase font-bold">+ Quick Add</button>}
+                                        </div>
+                                        
+                                        {isQuickAddingNote && (
+                                            <div className="flex flex-col gap-2 p-3 bg-slate-900 rounded-xl border border-blue-500/30 animate-in zoom-in-95 duration-200">
+                                                <input autoFocus value={quickNote} onChange={(e) => setQuickNote(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleQuickSaveNote()} placeholder="Compose thought..." className="bg-transparent border-none text-sm text-white focus:outline-none" />
+                                                <div className="flex justify-end gap-2">
+                                                    <button onClick={() => setIsQuickAddingNote(false)} className="text-[10px] text-slate-500">Cancel</button>
+                                                    <button onClick={handleQuickSaveNote} className="text-[10px] text-blue-400 font-bold">Save</button>
                                                 </div>
-                                                <p className="text-xs text-slate-400 leading-relaxed">{hurdle.description}</p>
-                                                
-                                                {/* Leads visualization */}
-                                                {hurdle.leads && hurdle.leads.length > 0 && (
-                                                    <div className="pt-2 border-t border-slate-800 space-y-2">
-                                                        <div className="flex items-center gap-2 text-[10px] font-bold text-emerald-500 uppercase">
-                                                            <Zap className="w-3 h-3" />
-                                                            Potential Leads
-                                                        </div>
-                                                        <div className="grid gap-1.5">
-                                                            {hurdle.leads.map((lead, j) => (
-                                                                <div key={j} className="flex items-center gap-2 text-[11px] text-emerald-200/70 bg-emerald-500/5 py-1 px-2 rounded-lg border border-emerald-500/10">
-                                                                    <ArrowRight className="w-2.5 h-2.5" />
-                                                                    {lead}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
                                             </div>
-                                        )) : (
-                                            <p className="text-xs text-slate-500 italic">No hurdles identified. Path is clear.</p>
                                         )}
-                                    </div>
-                                </section>
+                                        
+                                        <div className="space-y-3">
+                                            {selectedIdea.notes && selectedIdea.notes.length > 0 ? selectedIdea.notes.map((note, i) => (
+                                                <div key={i} className="flex gap-3 bg-slate-900/40 p-3 rounded-xl border border-white/5 group"><div className="h-1.5 w-1.5 rounded-full bg-yellow-500 mt-1.5 shrink-0" /><p className="text-sm text-slate-300">{note}</p></div>
+                                            )) : <p className="text-xs text-slate-500 italic">No notes recorded.</p>}
+                                        </div>
+                                    </section>
 
-                                <section className="card p-6 rounded-2xl bg-blue-900/10 border border-blue-500/10 space-y-4">
-                                    <div className="flex items-center gap-3 text-blue-400 font-bold text-sm uppercase">
-                                        <Activity className="w-5 h-5" />
-                                        System Insights
+                                    <section className="card p-6 rounded-2xl bg-white/5 border border-white/5 space-y-4 hover:bg-white/10 transition-colors h-fit">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3 text-orange-400 font-bold text-sm uppercase"><AlertCircle className="w-5 h-5" />Project Hurdles</div>
+                                            {!isQuickAddingHurdle && <button onClick={() => setIsQuickAddingHurdle(true)} className="text-[10px] text-orange-400 hover:text-orange-300 uppercase font-bold">+ Quick Add</button>}
+                                        </div>
+
+                                        {isQuickAddingHurdle && (
+                                            <div className="flex flex-col gap-3 p-3 bg-slate-900 rounded-xl border border-orange-500/30 animate-in zoom-in-95 duration-200">
+                                                <input 
+                                                    autoFocus 
+                                                    value={quickHurdle.title} 
+                                                    onChange={(e) => setQuickHurdle({...quickHurdle, title: e.target.value})} 
+                                                    onKeyDown={(e) => e.key === 'Enter' && handleQuickSaveHurdle()}
+                                                    placeholder="Setback name..." 
+                                                    className="bg-transparent border-none text-sm text-white font-bold focus:outline-none" 
+                                                />
+                                                <textarea 
+                                                    rows="2" 
+                                                    value={quickHurdle.desc} 
+                                                    onChange={(e) => setQuickHurdle({...quickHurdle, desc: e.target.value})} 
+                                                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleQuickSaveHurdle())}
+                                                    placeholder="Context..." 
+                                                    className="bg-transparent border-none text-xs text-slate-400 focus:outline-none resize-none" 
+                                                />
+                                                <div className="flex justify-end gap-2">
+                                                    <button onClick={() => setIsQuickAddingHurdle(false)} className="text-[10px] text-slate-500">Cancel</button>
+                                                    <button onClick={handleQuickSaveHurdle} className="text-[10px] text-orange-400 font-bold">Save</button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="space-y-4">
+                                            {selectedIdea.hurdles && selectedIdea.hurdles.length > 0 ? selectedIdea.hurdles.map((hurdle, i) => (
+                                                <div key={i} className="bg-slate-900/40 p-4 rounded-xl border border-orange-500/10 space-y-3">
+                                                    <div className="flex justify-between items-start"><h4 className="font-bold text-slate-200">{hurdle.main_setback}</h4><span className="text-[10px] text-slate-600 font-mono tracking-tighter">{hurdle.date}</span></div>
+                                                    <p className="text-xs text-slate-400 leading-relaxed">{hurdle.description}</p>
+                                                    {hurdle.leads && hurdle.leads.length > 0 && <div className="pt-2 border-t border-slate-800 space-y-2"><div className="flex items-center gap-2 text-[10px] font-bold text-emerald-500 uppercase"><Zap className="w-3 h-3" />Potential Leads</div><div className="flex flex-wrap gap-1.5">{hurdle.leads.map((lead, j) => (<div key={j} className="flex items-center gap-2 text-[10px] text-emerald-200/70 bg-emerald-500/5 py-1 px-2 rounded-lg border border-emerald-500/10"><ArrowRight className="w-2.5 h-2.5" />{lead}</div>))}</div></div>}
+                                                </div>
+                                            )) : <p className="text-xs text-slate-500 italic">No hurdles identified.</p>}
+                                        </div>
+                                    </section>
+                                </div>
+                                
+                                <section className="card p-6 rounded-2xl bg-blue-900/10 border border-blue-500/10 flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex items-center gap-3 text-blue-400 font-bold text-sm uppercase"><Activity className="w-5 h-5" />System Insights</div>
+                                        <div className="w-48 bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                            <div className={`bg-blue-500 h-full shadow-[0_0_10px_#3b82f6] transition-all duration-1000 ${selectedIdea.hurdles?.length > 0 ? 'w-2/3' : 'w-1/3'}`}></div>
+                                        </div>
                                     </div>
-                                    <div className="flex justify-between text-xs text-slate-500">
-                                        <span>Status</span>
-                                        <span className="text-blue-400 font-bold uppercase">{selectedIdea.hurdles?.length > 0 ? 'Blocked / Solving' : 'Clear / Analysis'}</span>
-                                    </div>
-                                    <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mt-2">
-                                        <div className={`bg-blue-500 h-full shadow-[0_0_10px_#3b82f6] transition-all duration-1000 ${selectedIdea.hurdles?.length > 0 ? 'w-2/3' : 'w-1/3'}`}></div>
+                                    <div className="flex gap-8 text-xs">
+                                        <div className="flex flex-col"><span className="text-slate-500 uppercase font-bold tracking-tighter">Current Status</span><span className="text-blue-400 font-bold uppercase">{selectedIdea.hurdles?.length > 0 ? 'Blocked / Solving' : 'Clear / Analysis'}</span></div>
+                                        <div className="flex flex-col"><span className="text-slate-500 uppercase font-bold tracking-tighter">Hurdles</span><span className="text-white font-bold">{selectedIdea.hurdles?.length || 0}</span></div>
+                                        <div className="flex flex-col"><span className="text-slate-500 uppercase font-bold tracking-tighter">Notes</span><span className="text-white font-bold">{selectedIdea.notes?.length || 0}</span></div>
                                     </div>
                                 </section>
                             </div>
-                        </div>
+                        )}
                     </div>
                 ) : (
                     <div className="h-full flex flex-col items-center justify-center text-slate-500 text-center gap-6 animate-pulse">
-                        <div className="w-20 h-20 rounded-3xl bg-slate-900 flex items-center justify-center border border-slate-800 shadow-xl">
-                            <Lightbulb className="w-10 h-10 opacity-30" />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-medium">Select an idea to visualize</h2>
-                            <p className="text-sm opacity-60">or launch a brand new concept from the sidebar</p>
-                        </div>
+                        <div className="w-20 h-20 rounded-3xl bg-slate-900 flex items-center justify-center border border-slate-800 shadow-xl"><Lightbulb className="w-10 h-10 opacity-30" /></div>
+                        <div><h2 className="text-xl font-medium">Select an idea to visualize</h2><p className="text-sm opacity-60">or launch a brand new concept from the sidebar</p></div>
                     </div>
                 )}
             </main>

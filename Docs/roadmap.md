@@ -78,3 +78,14 @@ Longer-term ideas to expand the app.
 - [ ] Export ideas to PDF or Markdown
 - [ ] Import ideas from a CSV file
 - [ ] Tagging and categorization system
+- [x] Splitted backend and frontend architecture
+
+---
+
+## Phase 7 — Visualization & AI Integration ✅ _(Completed)_
+
+Building internal observability and AI readiness.
+
+- [x] FastMCP Integration for AI Agent tool access
+- [x] Interactive System Architecture Flowchart (XYFlow)
+- [x] Bi-directional communication modeling (Dotted/Solid arrows)

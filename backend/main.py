@@ -1,10 +1,12 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import os
+from datetime import datetime
 from data.idea_repository import IdeaRepository
 from components.idea import Idea
+from components.hurdle import Hurdle
 
 app = FastAPI(title="Idea Manager API")
 
@@ -23,6 +25,7 @@ repo = IdeaRepository(os.path.join(os.path.dirname(__file__), 'ideas.csv'))
 class HurdleModel(BaseModel):
     main_setback: str
     description: Optional[str] = ""
+    date: Optional[str] = ""
     leads: Optional[List[str]] = []
 
 class IdeaModel(BaseModel):
@@ -33,6 +36,8 @@ class IdeaModel(BaseModel):
     future_extensions: Optional[str] = ""
     hurdles: Optional[List[HurdleModel]] = []
     notes: Optional[List[str]] = []
+    architecture: Optional[Dict[str, Any]] = {"nodes": [], "edges": []}
+
 
 @app.get("/ideas", response_model=List[dict])
 def list_ideas():
@@ -55,8 +60,16 @@ def add_idea(idea: IdeaModel):
         target_customers=idea.target_customers,
         minimal_deliverables=idea.minimal_deliverables,
         future_extensions=idea.future_extensions,
-        hurdles=[Hurdle(main_setback=h.main_setback, description=h.description, leads=h.leads) for h in idea.hurdles] if idea.hurdles else [],
-        notes=idea.notes
+        hurdles=[
+            Hurdle(
+                main_setback=h.main_setback, 
+                description=h.description, 
+                leads=h.leads,
+                date=datetime.strptime(h.date, '%Y-%m-%d %H:%M:%S') if h.date else None
+            ) for h in idea.hurdles
+        ] if idea.hurdles else [],
+        notes=idea.notes,
+        architecture=idea.architecture
     )
     repo.add_idea(new_idea)
     return {"status": "success", "message": f"Idea '{idea.title}' created."}
@@ -69,8 +82,16 @@ def update_idea(original_title: str, idea: IdeaModel):
         target_customers=idea.target_customers,
         minimal_deliverables=idea.minimal_deliverables,
         future_extensions=idea.future_extensions,
-        hurdles=[Hurdle(main_setback=h.main_setback, description=h.description, leads=h.leads) for h in idea.hurdles] if idea.hurdles else [],
-        notes=idea.notes
+        hurdles=[
+            Hurdle(
+                main_setback=h.main_setback, 
+                description=h.description, 
+                leads=h.leads,
+                date=datetime.strptime(h.date, '%Y-%m-%d %H:%M:%S') if h.date else None
+            ) for h in idea.hurdles
+        ] if idea.hurdles else [],
+        notes=idea.notes,
+        architecture=idea.architecture
     )
     repo.update_idea(original_title, updated_idea)
     return {"status": "success", "message": f"Idea '{original_title}' updated."}

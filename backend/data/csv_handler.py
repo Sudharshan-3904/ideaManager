@@ -4,7 +4,7 @@ import os
 class CSVHandler:
     def __init__(self, file_path):
         self.file_path = file_path
-        self.columns = ['title', 'description', 'target_customers', 'minimal_deliverables', 'future_extensions', 'hurdles', 'notes']
+        self.columns = ['title', 'description', 'target_customers', 'minimal_deliverables', 'future_extensions', 'hurdles', 'notes', 'architecture']
         self._ensure_file_exists()
 
     def _ensure_file_exists(self):

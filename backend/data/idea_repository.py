@@ -23,7 +23,7 @@ class IdeaRepository:
         """Updates an existing idea by title."""
         ideas = self.get_all_ideas()
         for i, idea in enumerate(ideas):
-            if idea.title == original_title:
+            if idea.title.strip().lower() == original_title.strip().lower():
                 ideas[i] = updated_idea
                 break
         self.save_all_ideas(ideas)
@@ -31,5 +31,5 @@ class IdeaRepository:
     def delete_idea(self, title):
         """Deletes an idea by title."""
         ideas = self.get_all_ideas()
-        ideas = [idea for idea in ideas if idea.title != title]
+        ideas = [idea for idea in ideas if idea.title.strip().lower() != title.strip().lower()]
         self.save_all_ideas(ideas)

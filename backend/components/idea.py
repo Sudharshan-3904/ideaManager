@@ -1,7 +1,10 @@
 from components.hurdle import Hurdle
+import json
+
 
 class Idea:
-    def __init__(self, title="", description="", target_customers="", minimal_deliverables="", future_extensions="", hurdles=None, notes=None):
+    def __init__(self, title="", description="", target_customers="", minimal_deliverables="", future_extensions="", hurdles=None, notes=None, architecture=None):
+
         self.title = title
         self.description = description
         self.target_customers = target_customers
@@ -9,6 +12,8 @@ class Idea:
         self.future_extensions = future_extensions
         self.hurdles = hurdles if hurdles is not None else []
         self.notes = notes if notes is not None else []
+        self.architecture = architecture if architecture is not None else {"nodes": [], "edges": []}
+
 
     def add_hurdle(self, hurdle):
         if isinstance(hurdle, Hurdle):
@@ -31,6 +36,9 @@ class Idea:
         notes_str = data.get('notes', "")
         notes = notes_str.split(';;') if notes_str else []
         
+        arch_str = data.get('architecture', "")
+        architecture = json.loads(arch_str) if arch_str else {"nodes": [], "edges": []}
+
         return cls(
             title=data.get('title', ""),
             description=data.get('description', ""),
@@ -38,7 +46,8 @@ class Idea:
             minimal_deliverables=data.get('minimal_deliverables', ""),
             future_extensions=data.get('future_extensions', ""),
             hurdles=hurdles,
-            notes=notes
+            notes=notes,
+            architecture=architecture
         )
 
     def to_dict(self):
@@ -57,7 +66,8 @@ class Idea:
                     'leads': h.leads
                 } for h in self.hurdles
             ],
-            'notes': self.notes
+            'notes': self.notes,
+            'architecture': self.architecture
         }
 
     def to_csv_dict(self):
@@ -71,7 +81,8 @@ class Idea:
             'minimal_deliverables': self.minimal_deliverables,
             'future_extensions': self.future_extensions,
             'hurdles': hurdles_str,
-            'notes': notes_str
+            'notes': notes_str,
+            'architecture': json.dumps(self.architecture)
         }
 
     def __repr__(self):
