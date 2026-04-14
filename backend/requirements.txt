@@ -1,0 +1,6 @@
+fastmcp
+pandas
+fastapi
+uvicorn
+python-multipart
+cors
