@@ -1,10 +1,8 @@
 from components.hurdle import Hurdle
 import json
 
-
 class Idea:
-    def __init__(self, title="", description="", target_customers="", minimal_deliverables="", future_extensions="", hurdles=None, notes=None, architecture=None, tags=None):
-
+    def __init__(self, title="", description="", target_customers="", minimal_deliverables="", future_extensions="", hurdles=None, notes=None, architecture=None, tags=None, is_archived=False, created_at=None):
         self.title = title
         self.description = description
         self.target_customers = target_customers
@@ -14,7 +12,8 @@ class Idea:
         self.notes = notes if notes is not None else []
         self.architecture = architecture if architecture is not None else {"nodes": [], "edges": []}
         self.tags = tags if tags is not None else []
-
+        self.is_archived = is_archived
+        self.created_at = created_at
 
     def add_hurdle(self, hurdle):
         if isinstance(hurdle, Hurdle):
@@ -25,6 +24,7 @@ class Idea:
     @classmethod
     def from_dict(cls, data):
         """Creates an Idea instance from a dictionary (e.g., a CSV row)."""
+        # Note: This is legacy CSV fallback
         hurdles_str = data.get('hurdles', "")
         hurdles = []
         if hurdles_str:
@@ -52,7 +52,33 @@ class Idea:
             hurdles=hurdles,
             notes=notes,
             architecture=architecture,
-            tags=tags
+            tags=tags,
+            is_archived=bool(int(data.get('is_archived', 0)))
+        )
+
+    @classmethod
+    def from_db_row(cls, data):
+        """Creates an Idea instance from a database dictionary row (already joined)."""
+        hurdles = [Hurdle.from_db_dict(h) for h in data.get('hurdles', [])]
+        
+        arch_data = data.get('architecture', '{"nodes": [], "edges": []}')
+        if isinstance(arch_data, str):
+            architecture = json.loads(arch_data)
+        else:
+            architecture = arch_data
+
+        return cls(
+            title=data.get('title', ""),
+            description=data.get('description', ""),
+            target_customers=data.get('target_customers', ""),
+            minimal_deliverables=data.get('minimal_deliverables', ""),
+            future_extensions=data.get('future_extensions', ""),
+            hurdles=hurdles,
+            notes=data.get('notes', []),
+            architecture=architecture,
+            tags=data.get('tags', []),
+            is_archived=bool(data.get('is_archived', 0)),
+            created_at=data.get('created_at')
         )
 
     def to_dict(self):
@@ -73,6 +99,31 @@ class Idea:
             ],
             'notes': self.notes,
             'architecture': self.architecture,
+            'tags': self.tags,
+            'is_archived': self.is_archived,
+            'created_at': self.created_at
+        }
+
+    def to_db_dict(self):
+        """Serializes the Idea instance for DB storage (nested dict)."""
+        return {
+            'title': self.title,
+            'description': self.description,
+            'target_customers': self.target_customers,
+            'minimal_deliverables': self.minimal_deliverables,
+            'future_extensions': self.future_extensions,
+            'architecture': self.architecture,
+            'is_archived': self.is_archived,
+            'created_at': self.created_at,
+            'hurdles': [
+                {
+                    'date': h.date.strftime('%Y-%m-%d %H:%M:%S'),
+                    'main_setback': h.main_setback,
+                    'description': h.description,
+                    'leads': h.leads
+                } for h in self.hurdles
+            ],
+            'notes': self.notes,
             'tags': self.tags
         }
 
@@ -90,8 +141,9 @@ class Idea:
             'hurdles': hurdles_str,
             'notes': notes_str,
             'architecture': json.dumps(self.architecture),
-            'tags': tags_str
+            'tags': tags_str,
+            'is_archived': 1 if self.is_archived else 0
         }
 
     def __repr__(self):
-        return f"Idea('{self.title}', {len(self.hurdles)} hurdles, {len(self.notes)} notes)"
+        return f"Idea('{self.title}', {len(self.hurdles)} hurdles, {len(self.notes)} notes, archived={self.is_archived})"

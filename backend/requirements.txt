@@ -4,3 +4,5 @@ fastapi
 uvicorn
 python-multipart
 cors
+passlib[bcrypt]
+python-jose[cryptography]

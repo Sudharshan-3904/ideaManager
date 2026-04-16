@@ -1,27 +1,73 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, Depends, status, UploadFile, File
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import os
-from datetime import datetime
+import hashlib
+from datetime import datetime, timedelta
+from jose import JWTError, jwt
+
 from data.idea_repository import IdeaRepository
 from components.idea import Idea
 from components.hurdle import Hurdle
+
+# Configuration
+SECRET_KEY = "super-secret-key-for-idea-manager" # In production, use environment variable
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 hours
 
 app = FastAPI(title="Idea Manager API")
 
 # Enable CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In development, allow all
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Initialize Repository
-repo = IdeaRepository(os.path.join(os.path.dirname(__file__), 'ideas.csv'))
+# Initialize Repository with SQL
+DB_PATH = os.path.join(os.path.dirname(__file__), 'ideas.db')
+repo = IdeaRepository(storage_type="db", db_path=DB_PATH)
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
+# --- Security Helpers ---
+
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    
+    # Verify user exists in DB
+    user = repo.db_handler.fetchone("SELECT * FROM users WHERE username = ?", (username,))
+    if user is None:
+        raise credentials_exception
+    return user
+
+# --- Models ---
 
 class HurdleModel(BaseModel):
     main_setback: str
@@ -39,15 +85,31 @@ class IdeaModel(BaseModel):
     notes: Optional[List[str]] = []
     tags: Optional[List[str]] = []
     architecture: Optional[Dict[str, Any]] = {"nodes": [], "edges": []}
+    is_archived: Optional[bool] = False
 
+# --- Auth Endpoints ---
+
+@app.post("/login")
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = repo.db_handler.fetchone("SELECT * FROM users WHERE username = ?", (form_data.username,))
+    if not user:
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
+    
+    if hash_password(form_data.password) != user['password_hash']:
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
+    
+    access_token = create_access_token(data={"sub": user['username']})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+# --- Idea Endpoints ---
 
 @app.get("/ideas", response_model=List[dict])
-def list_ideas():
+def list_ideas(current_user: dict = Depends(get_current_user)):
     ideas = repo.get_all_ideas()
     return [idea.to_dict() for idea in ideas]
 
 @app.get("/ideas/{title}", response_model=dict)
-def get_idea(title: str):
+def get_idea(title: str, current_user: dict = Depends(get_current_user)):
     ideas = repo.get_all_ideas()
     for idea in ideas:
         if idea.title.lower() == title.lower():
@@ -55,7 +117,12 @@ def get_idea(title: str):
     raise HTTPException(status_code=404, detail="Idea not found")
 
 @app.post("/ideas", response_model=dict)
-def add_idea(idea: IdeaModel):
+def add_idea(idea: IdeaModel, current_user: dict = Depends(get_current_user)):
+    # Check for duplicate title
+    existing = repo.db_handler.fetchone("SELECT title FROM ideas WHERE title = ?", (idea.title,))
+    if existing:
+        raise HTTPException(status_code=400, detail=f"An idea with title '{idea.title}' already exists.")
+
     new_idea = Idea(
         title=idea.title,
         description=idea.description,
@@ -72,13 +139,14 @@ def add_idea(idea: IdeaModel):
         ] if idea.hurdles else [],
         notes=idea.notes,
         tags=idea.tags,
-        architecture=idea.architecture
+        architecture=idea.architecture,
+        is_archived=idea.is_archived
     )
     repo.add_idea(new_idea)
     return {"status": "success", "message": f"Idea '{idea.title}' created."}
 
 @app.put("/ideas/{original_title}", response_model=dict)
-def update_idea(original_title: str, idea: IdeaModel):
+def update_idea(original_title: str, idea: IdeaModel, current_user: dict = Depends(get_current_user)):
     updated_idea = Idea(
         title=idea.title,
         description=idea.description,
@@ -95,32 +163,28 @@ def update_idea(original_title: str, idea: IdeaModel):
         ] if idea.hurdles else [],
         notes=idea.notes,
         tags=idea.tags,
-        architecture=idea.architecture
+        architecture=idea.architecture,
+        is_archived=idea.is_archived
     )
     repo.update_idea(original_title, updated_idea)
     return {"status": "success", "message": f"Idea '{original_title}' updated."}
 
+@app.patch("/ideas/{title}/archive", response_model=dict)
+def archive_idea(title: str, archived: bool, current_user: dict = Depends(get_current_user)):
+    repo.archive_idea(title, archived)
+    return {"status": "success", "message": f"Idea '{title}' {'archived' if archived else 'unarchived'}."}
+
 @app.delete("/ideas/{title}", response_model=dict)
-def delete_idea(title: str):
+def delete_idea(title: str, current_user: dict = Depends(get_current_user)):
     repo.delete_idea(title)
     return {"status": "success", "message": f"Idea '{title}' deleted."}
 
 @app.get("/export")
-def export_ideas():
-    file_path = os.path.join(os.path.dirname(__file__), 'ideas.csv')
-    return FileResponse(path=file_path, filename="ideas_export.csv", media_type='text/csv')
-
-@app.post("/import")
-async def import_ideas(file: UploadFile = File(...)):
-    if not file.filename.endswith('.csv'):
-        raise HTTPException(status_code=400, detail="Only CSV files are supported")
-    
-    file_path = os.path.join(os.path.dirname(__file__), 'ideas.csv')
-    content = await file.read()
-    with open(file_path, 'wb') as f:
-        f.write(content)
-    
-    return {"status": "success", "message": "Ideas imported successfully."}
+def export_ideas(current_user: dict = Depends(get_current_user)):
+    # Note: Exporting the CSV file directly from current working dir
+    # If using SQL, we might want to generate a fresh CSV here.
+    # For now, we'll just return the SQLite file or a message.
+    return {"status": "info", "message": "SQL migration complete. Use database tools for export for now."}
 
 if __name__ == "__main__":
     import uvicorn

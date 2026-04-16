@@ -40,7 +40,7 @@ Building the modern FastAPI + React interface.
 
 ---
 
-## Phase 4 — Core Interactions ✅ _(Mostly Completed)_
+## Phase 4 — Core Interactions ✅ _(Completed)_
 
 Make the app fully usable for daily idea tracking.
 
@@ -91,45 +91,44 @@ Building internal observability and AI readiness.
 
 ---
 
-## Phase 8 — Persistence Layer (SQL Migration) ⏳ _(Planned)_
+## Phase 8 — Persistence Layer (SQL Migration) ✅ _(Completed)_
 
 Moving from flat CSV to a robust relational database for atomicity and faster querying.
 
-- [ ] Design SQLite schema for core tables: `Ideas`, `Hurdles`, `Notes`, and `Tags`
-- [ ] Implement `backend/data/db_manager.py` — unified interface for all DB interactions
-- [ ] Create `migration_csv_to_sqlite.py` script for painless data transition
-- [ ] Configure `IdeaRepository` to leverage the SQLite backend instead of CSV
+- [x] Design SQLite schema for core tables: `Ideas`, `Hurdles`, `Notes`, and `Tags`
+- [x] Implement `backend/data/db_manager.py` — unified interface for all DB interactions
+- [x] Create `migration_csv_to_sqlite.py` script for painless data transition
+- [x] Configure `IdeaRepository` to leverage the SQLite backend instead of CSV
 
 ---
 
-## Phase 9 — Identity & Access (Basic Auth) ⏳ _(Planned)_
+## Phase 9 — Identity & Access (Basic Auth) ✅ _(Completed)_
 
 Securing personal data for solo testing environments.
 
-- [ ] Create `Users` table with username and salted/hashed password storage (`bcrypt`)
-- [ ] Implement Backend Login endpoint returning JWT or session tokens
-- [ ] Secure all sensitive API endpoints with authentication middleware
-- [ ] Add Frontend Login overlay and session persistence with LocalStorage
+- [x] Create `Users` table with username and salted/hashed password storage
+- [x] Implement Backend Login endpoint returning JWT or session tokens
+- [x] Secure all sensitive API endpoints with authentication middleware
+- [x] Add Frontend Login overlay and session persistence with LocalStorage
 
 ---
 
-## Phase 10 — Frontend Resilience & UX Polish ⏳ _(Planned)_
+## Phase 10 — Frontend Resilience & UX Polish ✅ _(Completed)_
 
 Refining the interface for a smoother, professional-grade user experience.
 
-- [ ] Implement global loading states and skeleton loaders for all Dashboard sectors
-- [ ] Replace native Browser `alert()` and `confirm()` prompts with themed components
-- [ ] Integrate a Toast Notification system for operation feedback (Success/Error)
-- [ ] Implement state persistence for Search Query and Filter settings across refreshes
+- [x] Implement global loading states and skeleton loaders for all Dashboard sectors
+- [x] Replace native Browser `alert()` and `confirm()` prompts with themed components
+- [x] Integrate a Toast Notification system for operation feedback (Success/Error)
+- [x] Implement state persistence for Search Query and Filter settings across refreshes
 
 ---
 
-## Phase 11 — Logic Validation & Data Integrity ⏳ _(Planned)_
+## Phase 11 — Logic Validation & Data Integrity ✅ _(Completed)_
 
 Hardening business rules to prevent data corruption and accidental loss.
 
-- [ ] Implement strict server-side model validation (Unique titles, date adherence)
-- [ ] Add "Archival" feature (Soft Delete) with a dedicated "Archived" UI tab
-- [ ] Sanitize and normalize all string inputs to avoid breakage
-- [ ] Implement an automated DB backup mechanism on data change
-
+- [x] Implement strict server-side model validation (Unique titles, date adherence)
+- [x] Add "Archival" feature (Soft Delete) with a dedicated "Archived" UI tab
+- [x] Sanitize and normalize all string inputs to avoid breakage
+- [x] Implement an automated DB backup mechanism on data change

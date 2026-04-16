@@ -34,5 +34,17 @@ class Hurdle:
         leads_str = "::".join(self.leads)
         return f"{date_str}|{self.main_setback}|{self.description}|{leads_str}"
 
+    @classmethod
+    def from_db_dict(cls, data):
+        """Creates a Hurdle instance from a database dictionary row."""
+        date_str = data.get('date', "")
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S') if date_str else datetime.now()
+        return cls(
+            date=date_obj,
+            main_setback=data.get('main_setback', ""),
+            description=data.get('description', ""),
+            leads=data.get('leads', [])
+        )
+
     def __repr__(self):
         return f"Hurdle({self.date.strftime('%Y-%m-%d')}, {self.main_setback}, {len(self.leads)} leads)"
