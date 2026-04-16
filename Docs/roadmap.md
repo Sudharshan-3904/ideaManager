@@ -132,3 +132,89 @@ Hardening business rules to prevent data corruption and accidental loss.
 - [x] Add "Archival" feature (Soft Delete) with a dedicated "Archived" UI tab
 - [x] Sanitize and normalize all string inputs to avoid breakage
 - [x] Implement an automated DB backup mechanism on data change
+
+---
+
+## Phase 12 — Testing & Quality 🔲 _(Planned)_
+
+Building confidence through automated test coverage and continuous integration.
+
+- [ ] Write unit tests for backend models (`Idea`, `Hurdle`) using `pytest`
+- [ ] Write integration tests for all FastAPI endpoints (CRUD, auth, archive)
+- [ ] Write tests for `IdeaRepository` and `db_handler` layer
+- [ ] Add frontend component tests using `Vitest` + `React Testing Library`
+- [ ] Set up GitHub Actions CI pipeline — run all tests on push to `dev` and PRs to `main`
+- [ ] Add a code coverage badge to `ReadMe.md`
+- [ ] Lint enforcement: `ruff` for Python, `ESLint` for JSX
+
+---
+
+## Phase 13 — Deployment & DevOps 🔲 _(Planned)_
+
+Making the app runnable anywhere with a single command.
+
+- [ ] Write a `Dockerfile` for the FastAPI backend
+- [ ] Write a `Dockerfile` for the Vite/React frontend
+- [ ] Create a `docker-compose.yml` for unified local orchestration
+- [ ] Manage secrets and config via `.env` files (never committed to git)
+- [ ] Deploy backend to a free cloud host (Railway, Fly.io, or Render)
+- [ ] Deploy frontend to Vercel or Netlify with automatic preview deployments
+- [ ] Configure CORS, HTTPS, and environment-specific settings for production
+- [ ] Add a health-check endpoint (`GET /health`) for monitoring
+
+---
+
+## Phase 14 — Multi-User & Collaboration 🔲 _(Planned)_
+
+Expanding from a solo tool to a shared workspace.
+
+- [ ] Scope all ideas, hurdles, and tags to the authenticated user's account
+- [ ] Add role system — Owner, Collaborator, Viewer per idea
+- [ ] Implement "Share Idea" flow — invite another registered user by email/username
+- [ ] Build a real-time activity feed per idea (who edited what and when)
+- [ ] Add a full audit log table in SQLite — track all mutations with timestamps and actor
+- [ ] Add in-app notifications for collaboration events (comment, share, status change)
+
+---
+
+## Phase 15 — AI Integration 🔲 _(Planned)_
+
+Making the app intelligent and context-aware using local and cloud LLMs.
+
+- [ ] Connect to a local Ollama instance for private AI inference
+- [ ] Auto-generate hurdle suggestions from an idea's title and description
+- [ ] AI-powered idea summary — condense all fields into a concise 3-sentence pitch
+- [ ] Feasibility scoring — rate an idea on effort, novelty, and market fit (1–10)
+- [ ] "Expand Idea" feature — generate minimal deliverables and future extensions automatically
+- [ ] Semantic search across all ideas using embeddings (e.g., `nomic-embed-text` via Ollama)
+- [ ] AI-generated tags — auto-tag ideas based on their content
+- [ ] Add a model selector in Settings to switch between Ollama models
+
+---
+
+## Phase 16 — Mobile & PWA Support 🔲 _(Planned)_
+
+Making the app usable on any device, offline-first.
+
+- [ ] Convert the frontend into a Progressive Web App (PWA) with a `manifest.json`
+- [ ] Implement a Service Worker for offline caching of the dashboard
+- [ ] Make all UI components fully responsive for mobile screen sizes
+- [ ] Add touch-friendly interactions — swipe to archive, long-press for context menu
+- [ ] Implement background sync — queue mutations offline, flush when back online
+- [ ] Add an "Install App" prompt for mobile and desktop browsers
+- [ ] Test and optimize for Core Web Vitals (LCP, CLS, FID)
+
+---
+
+## Phase 17 — Analytics & Insights 🔲 _(Planned)_
+
+Turning raw idea data into actionable personal metrics.
+
+- [ ] Build an "Insights" dashboard page with charts (recharts or Chart.js)
+- [ ] Track idea velocity — how many ideas added per week/month
+- [ ] Visualize hurdle frequency — which ideas are most blocked
+- [ ] Show tag distribution as a donut/pie chart
+- [ ] Display a timeline/Gantt view of ideas by creation date and status
+- [ ] Export Insights as a PDF or shareable image
+- [ ] Add a "Streak" tracker — how many consecutive days with activity
+- [ ] Surface "Stale Ideas" — ideas with no edits in the last 30 days
