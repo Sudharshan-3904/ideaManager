@@ -83,9 +83,7 @@ class HurdleModel(BaseModel):
 class IdeaModel(BaseModel):
     title: str
     description: Optional[str] = ""
-    target_customers: Optional[str] = ""
-    minimal_deliverables: Optional[str] = ""
-    future_extensions: Optional[str] = ""
+    explanation: Optional[str] = ""
     hurdles: Optional[List[HurdleModel]] = []
     notes: Optional[List[str]] = []
     tags: Optional[List[str]] = []
@@ -208,9 +206,7 @@ def add_idea(idea: IdeaModel, current_user: dict = Depends(get_current_user)):
     new_idea = Idea(
         title=idea.title,
         description=idea.description,
-        target_customers=idea.target_customers,
-        minimal_deliverables=idea.minimal_deliverables,
-        future_extensions=idea.future_extensions,
+        explanation=idea.explanation,
         hurdles=[
             Hurdle(
                 main_setback=h.main_setback, 
@@ -233,9 +229,7 @@ def update_idea(original_title: str, idea: IdeaModel, current_user: dict = Depen
     updated_idea = Idea(
         title=idea.title,
         description=idea.description,
-        target_customers=idea.target_customers,
-        minimal_deliverables=idea.minimal_deliverables,
-        future_extensions=idea.future_extensions,
+        explanation=idea.explanation,
         hurdles=[
             Hurdle(
                 main_setback=h.main_setback, 

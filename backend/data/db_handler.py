@@ -24,9 +24,7 @@ class DBHandler:
             CREATE TABLE IF NOT EXISTS ideas (
                 title TEXT PRIMARY KEY,
                 description TEXT,
-                target_customers TEXT,
-                minimal_deliverables TEXT,
-                future_extensions TEXT,
+                explanation TEXT,
                 architecture TEXT,
                 status TEXT DEFAULT 'Yet to Start',
                 is_archived INTEGER DEFAULT 0,
@@ -219,14 +217,12 @@ class DBHandler:
             
             # Insert or Replace base idea
             cursor.execute('''
-                INSERT OR REPLACE INTO ideas (title, description, target_customers, minimal_deliverables, future_extensions, architecture, status, is_archived, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT OR REPLACE INTO ideas (title, description, explanation, architecture, status, is_archived, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             ''', (
                 idea_dict['title'],
                 idea_dict.get('description', ''),
-                idea_dict.get('target_customers', ''),
-                idea_dict.get('minimal_deliverables', ''),
-                idea_dict.get('future_extensions', ''),
+                idea_dict.get('explanation', ''),
                 json.dumps(idea_dict.get('architecture', {"nodes": [], "edges": []})),
                 idea_dict.get('status', 'Yet to Start'),
                 1 if idea_dict.get('is_archived', False) else 0,

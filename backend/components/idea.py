@@ -2,12 +2,10 @@ from components.hurdle import Hurdle
 import json
 
 class Idea:
-    def __init__(self, title="", description="", target_customers="", minimal_deliverables="", future_extensions="", hurdles=None, notes=None, architecture=None, tags=None, is_archived=False, created_at=None, owner_username=None, status="Yet to Start"):
+    def __init__(self, title="", description="", explanation="", hurdles=None, notes=None, architecture=None, tags=None, is_archived=False, created_at=None, owner_username=None, status="Yet to Start"):
         self.title = title
         self.description = description
-        self.target_customers = target_customers
-        self.minimal_deliverables = minimal_deliverables
-        self.future_extensions = future_extensions
+        self.explanation = explanation
         self.hurdles = hurdles if hurdles is not None else []
         self.notes = notes if notes is not None else []
         self.architecture = architecture if architecture is not None else {"nodes": [], "edges": []}
@@ -72,9 +70,7 @@ class Idea:
         return cls(
             title=data.get('title', ""),
             description=data.get('description', ""),
-            target_customers=data.get('target_customers', ""),
-            minimal_deliverables=data.get('minimal_deliverables', ""),
-            future_extensions=data.get('future_extensions', ""),
+            explanation=data.get('explanation', ""),
             hurdles=hurdles,
             notes=data.get('notes', []),
             architecture=architecture,
@@ -90,9 +86,7 @@ class Idea:
         return {
             'title': self.title,
             'description': self.description,
-            'target_customers': self.target_customers,
-            'minimal_deliverables': self.minimal_deliverables,
-            'future_extensions': self.future_extensions,
+            'explanation': self.explanation,
             'hurdles': [
                 {
                     'date': h.date.strftime('%Y-%m-%d %H:%M:%S'),
@@ -114,9 +108,7 @@ class Idea:
         return {
             'title': self.title,
             'description': self.description,
-            'target_customers': self.target_customers,
-            'minimal_deliverables': self.minimal_deliverables,
-            'future_extensions': self.future_extensions,
+            'explanation': self.explanation,
             'architecture': self.architecture,
             'is_archived': self.is_archived,
             'created_at': self.created_at,
