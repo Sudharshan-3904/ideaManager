@@ -28,6 +28,7 @@ class DBHandler:
                 minimal_deliverables TEXT,
                 future_extensions TEXT,
                 architecture TEXT,
+                status TEXT DEFAULT 'Yet to Start',
                 is_archived INTEGER DEFAULT 0,
                 created_at TEXT
             )
@@ -218,8 +219,8 @@ class DBHandler:
             
             # Insert or Replace base idea
             cursor.execute('''
-                INSERT OR REPLACE INTO ideas (title, description, target_customers, minimal_deliverables, future_extensions, architecture, is_archived, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT OR REPLACE INTO ideas (title, description, target_customers, minimal_deliverables, future_extensions, architecture, status, is_archived, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 idea_dict['title'],
                 idea_dict.get('description', ''),
@@ -227,6 +228,7 @@ class DBHandler:
                 idea_dict.get('minimal_deliverables', ''),
                 idea_dict.get('future_extensions', ''),
                 json.dumps(idea_dict.get('architecture', {"nodes": [], "edges": []})),
+                idea_dict.get('status', 'Yet to Start'),
                 1 if idea_dict.get('is_archived', False) else 0,
                 idea_dict.get('created_at', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
             ))

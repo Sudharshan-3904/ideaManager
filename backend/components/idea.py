@@ -2,7 +2,7 @@ from components.hurdle import Hurdle
 import json
 
 class Idea:
-    def __init__(self, title="", description="", target_customers="", minimal_deliverables="", future_extensions="", hurdles=None, notes=None, architecture=None, tags=None, is_archived=False, created_at=None, owner_username=None):
+    def __init__(self, title="", description="", target_customers="", minimal_deliverables="", future_extensions="", hurdles=None, notes=None, architecture=None, tags=None, is_archived=False, created_at=None, owner_username=None, status="Yet to Start"):
         self.title = title
         self.description = description
         self.target_customers = target_customers
@@ -15,6 +15,7 @@ class Idea:
         self.is_archived = is_archived
         self.created_at = created_at
         self.owner_username = owner_username
+        self.status = status
 
     def add_hurdle(self, hurdle):
         if isinstance(hurdle, Hurdle):
@@ -80,7 +81,8 @@ class Idea:
             tags=data.get('tags', []),
             is_archived=bool(data.get('is_archived', 0)),
             created_at=data.get('created_at'),
-            owner_username=data.get('owner_username')
+            owner_username=data.get('owner_username'),
+            status=data.get('status', 'Yet to Start')
         )
 
     def to_dict(self):
@@ -103,7 +105,8 @@ class Idea:
             'architecture': self.architecture,
             'tags': self.tags,
             'is_archived': self.is_archived,
-            'created_at': self.created_at
+            'created_at': self.created_at,
+            'status': self.status
         }
 
     def to_db_dict(self):
@@ -118,6 +121,7 @@ class Idea:
             'is_archived': self.is_archived,
             'created_at': self.created_at,
             'owner_username': self.owner_username,
+            'status': self.status,
             'hurdles': [
                 {
                     'date': h.date.strftime('%Y-%m-%d %H:%M:%S'),

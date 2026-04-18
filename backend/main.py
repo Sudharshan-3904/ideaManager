@@ -91,6 +91,7 @@ class IdeaModel(BaseModel):
     tags: Optional[List[str]] = []
     architecture: Optional[Dict[str, Any]] = {"nodes": [], "edges": []}
     is_archived: Optional[bool] = False
+    status: Optional[str] = "Yet to Start"
 
 # --- Auth Endpoints ---
 
@@ -221,7 +222,8 @@ def add_idea(idea: IdeaModel, current_user: dict = Depends(get_current_user)):
         notes=idea.notes,
         tags=idea.tags,
         architecture=idea.architecture,
-        is_archived=idea.is_archived
+        is_archived=idea.is_archived,
+        status=idea.status
     )
     repo.add_idea(new_idea, owner_username=current_user['username'])
     return {"status": "success", "message": f"Idea '{idea.title}' created."}
@@ -245,7 +247,8 @@ def update_idea(original_title: str, idea: IdeaModel, current_user: dict = Depen
         notes=idea.notes,
         tags=idea.tags,
         architecture=idea.architecture,
-        is_archived=idea.is_archived
+        is_archived=idea.is_archived,
+        status=idea.status
     )
     # Permission check: Only Owner or Collaborator can update
     role_row = repo.db_handler.fetchone("SELECT role FROM idea_roles WHERE idea_title = ? AND username = ?", (original_title, current_user['username']))

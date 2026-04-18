@@ -37,7 +37,8 @@ const App = () => {
         future_extensions: '',
         notes: [],
         hurdles: [],
-        tags: []
+        tags: [],
+        status: 'Yet to Start'
     });
 
     useEffect(() => {
@@ -119,7 +120,8 @@ const App = () => {
             future_extensions: '',
             notes: [],
             hurdles: [],
-            tags: []
+            tags: [],
+            status: 'Yet to Start'
         });
     };
 
@@ -134,7 +136,8 @@ const App = () => {
             future_extensions: selectedIdea.future_extensions,
             notes: selectedIdea.notes || [],
             hurdles: selectedIdea.hurdles || [],
-            tags: selectedIdea.tags || []
+            tags: selectedIdea.tags || [],
+            status: selectedIdea.status || 'Yet to Start'
         });
     };
 
@@ -415,6 +418,15 @@ const App = () => {
                                             {idea.title}
                                         </span>
                                         {idea.hurdles?.length > 0 && <span className="bg-orange-500/20 text-orange-400 text-[8px] px-1 rounded border border-orange-500/30 font-bold">{idea.hurdles.length}</span>}
+                                        <span className={`text-[8px] px-1 rounded border font-mono uppercase ${
+                                            idea.status === 'On Going' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                                            idea.status === 'Paused' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' :
+                                            idea.status === 'Stopped' ? 'bg-red-500/20 text-red-500 border-red-500/30' :
+                                            idea.status === 'Planning' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                                            'bg-slate-500/20 text-slate-400 border-slate-500/30'
+                                        }`}>
+                                            {idea.status || 'Yet to Start'}
+                                        </span>
                                     </div>
                                     <div className="flex gap-1 mt-0.5 overflow-hidden">
                                         {(idea.tags || []).slice(0, 2).map((tag, idx) => (
@@ -464,15 +476,31 @@ const App = () => {
                       </div>
 
                       <form onSubmit={handleSave} className="space-y-6">
-                          <div className="space-y-2">
-                              <label className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-2">Title</label>
-                              <input 
-                                required
-                                value={formData.title}
-                                onChange={(e) => setFormData({...formData, title: e.target.value})}
-                                placeholder="What's the name of the idea?"
-                                className="w-full bg-slate-900 border border-slate-700/50 rounded-xl py-4 px-6 text-lg focus:outline-none focus:border-blue-500/50 transition-all font-medium text-white"
-                              />
+                          <div className="grid grid-cols-2 gap-6">
+                              <div className="space-y-2">
+                                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-2">Title</label>
+                                  <input 
+                                    required
+                                    value={formData.title}
+                                    onChange={(e) => setFormData({...formData, title: e.target.value})}
+                                    placeholder="What's the name of the idea?"
+                                    className="w-full bg-slate-900 border border-slate-700/50 rounded-xl py-4 px-6 text-lg focus:outline-none focus:border-blue-500/50 transition-all font-medium text-white"
+                                  />
+                              </div>
+                              <div className="space-y-2">
+                                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-2">Current Status</label>
+                                  <select 
+                                    value={formData.status}
+                                    onChange={(e) => setFormData({...formData, status: e.target.value})}
+                                    className="w-full bg-slate-900 border border-slate-700/50 rounded-xl py-4 px-6 text-sm focus:outline-none focus:border-blue-500/50 transition-all text-white h-[66px]"
+                                  >
+                                    <option value="Yet to Start">Yet to Start</option>
+                                    <option value="Planning">Planning</option>
+                                    <option value="On Going">On Going</option>
+                                    <option value="Paused">Paused</option>
+                                    <option value="Stopped">Stopped</option>
+                                  </select>
+                              </div>
                           </div>
                           
                           <div className="grid grid-cols-2 gap-6">
@@ -526,7 +554,18 @@ const App = () => {
                                     {selectedIdea.is_archived ? 'Archived Record' : 'Active System Data'}
                                 </div>
                                 <h1 className="text-4xl font-extrabold text-white tracking-tight">{selectedIdea.title}</h1>
-                                {viewMode === 'ideas' && <p className="text-slate-400 mt-3 max-w-2xl leading-relaxed">{selectedIdea.description || 'No description provided yet.'}</p>}
+                                <div className="flex gap-2 mt-2">
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full border font-bold uppercase tracking-wider ${
+                                        selectedIdea.status === 'On Going' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                                        selectedIdea.status === 'Paused' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' :
+                                        selectedIdea.status === 'Stopped' ? 'bg-red-500/20 text-red-500 border-red-500/30' :
+                                        selectedIdea.status === 'Planning' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+                                        'bg-slate-500/20 text-slate-400 border-slate-500/30'
+                                    }`}>
+                                        {selectedIdea.status || 'Yet to Start'}
+                                    </span>
+                                </div>
+                                {viewMode === 'ideas' && <p className="text-slate-400 mt-4 max-w-2xl leading-relaxed">{selectedIdea.description || 'No description provided yet.'}</p>}
                             </div>
                             <div className="flex gap-2">
                                 <div className="flex bg-slate-900/50 p-1 rounded-xl border border-slate-700/50 mr-4">
