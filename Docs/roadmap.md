@@ -135,49 +135,20 @@ Hardening business rules to prevent data corruption and accidental loss.
 
 ---
 
-## Phase 12 — Testing & Quality 🔲 _(Planned)_
-
-Building confidence through automated test coverage and continuous integration.
-
-- [ ] Write unit tests for backend models (`Idea`, `Hurdle`) using `pytest`
-- [ ] Write integration tests for all FastAPI endpoints (CRUD, auth, archive)
-- [ ] Write tests for `IdeaRepository` and `db_handler` layer
-- [ ] Add frontend component tests using `Vitest` + `React Testing Library`
-- [ ] Set up GitHub Actions CI pipeline — run all tests on push to `dev` and PRs to `main`
-- [ ] Add a code coverage badge to `ReadMe.md`
-- [ ] Lint enforcement: `ruff` for Python, `ESLint` for JSX
-
----
-
-## Phase 13 — Deployment & DevOps 🔲 _(Planned)_
-
-Making the app runnable anywhere with a single command.
-
-- [ ] Write a `Dockerfile` for the FastAPI backend
-- [ ] Write a `Dockerfile` for the Vite/React frontend
-- [ ] Create a `docker-compose.yml` for unified local orchestration
-- [ ] Manage secrets and config via `.env` files (never committed to git)
-- [ ] Deploy backend to a free cloud host (Railway, Fly.io, or Render)
-- [ ] Deploy frontend to Vercel or Netlify with automatic preview deployments
-- [ ] Configure CORS, HTTPS, and environment-specific settings for production
-- [ ] Add a health-check endpoint (`GET /health`) for monitoring
-
----
-
-## Phase 14 — Multi-User & Collaboration 🔲 _(Planned)_
+## Phase 12 — Multi-User & Collaboration ✅ _(Completed)_
 
 Expanding from a solo tool to a shared workspace.
 
-- [ ] Scope all ideas, hurdles, and tags to the authenticated user's account
-- [ ] Add role system — Owner, Collaborator, Viewer per idea
-- [ ] Implement "Share Idea" flow — invite another registered user by email/username
-- [ ] Build a real-time activity feed per idea (who edited what and when)
-- [ ] Add a full audit log table in SQLite — track all mutations with timestamps and actor
-- [ ] Add in-app notifications for collaboration events (comment, share, status change)
+- [x] Scope all ideas, hurdles, and tags to the authenticated user's account
+- [x] Add role system — Owner, Collaborator, Viewer per idea
+- [x] Implement "Share Idea" flow — invite another registered user by email/username
+- [x] Build a real-time activity feed per idea (who edited what and when)
+- [x] Add a full audit log table in SQLite — track all mutations with timestamps and actor
+- [x] Add in-app notifications for collaboration events (comment, share, status change)
 
 ---
 
-## Phase 15 — AI Integration 🔲 _(Planned)_
+## Phase 13 — AI Integration 🔲 _(Planned)_
 
 Making the app intelligent and context-aware using local and cloud LLMs.
 
@@ -192,7 +163,7 @@ Making the app intelligent and context-aware using local and cloud LLMs.
 
 ---
 
-## Phase 16 — Mobile & PWA Support 🔲 _(Planned)_
+## Phase 14 — Mobile & PWA Support 🔲 _(Planned)_
 
 Making the app usable on any device, offline-first.
 
@@ -206,7 +177,7 @@ Making the app usable on any device, offline-first.
 
 ---
 
-## Phase 17 — Analytics & Insights 🔲 _(Planned)_
+## Phase 15 — Analytics & Insights 🔲 _(Planned)_
 
 Turning raw idea data into actionable personal metrics.
 

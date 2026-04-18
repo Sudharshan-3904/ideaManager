@@ -103,9 +103,61 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 
 # --- Idea Endpoints ---
 
+@app.patch("/ideas/{title}/archive", response_model=dict)
+def archive_idea(title: str, archived: bool, current_user: dict = Depends(get_current_user)):
+    # Permission check
+    role_row = repo.db_handler.fetchone("SELECT role FROM idea_roles WHERE idea_title = ? AND username = ?", (title, current_user['username']))
+    if not role_row or role_row['role'] == 'Viewer':
+        raise HTTPException(status_code=403, detail="You do not have permission to archive this idea.")
+
+    repo.archive_idea(title, archived, username=current_user['username'])
+    return {"status": "success", "message": f"Idea '{title}' {'archived' if archived else 'unarchived'}."}
+
+@app.delete("/ideas/{title}", response_model=dict)
+def delete_idea(title: str, current_user: dict = Depends(get_current_user)):
+    # Only Owner can delete
+    role_row = repo.db_handler.fetchone("SELECT role FROM idea_roles WHERE idea_title = ? AND username = ?", (title, current_user['username']))
+    if not role_row or role_row['role'] != 'Owner':
+        raise HTTPException(status_code=403, detail="Only the Owner can delete this idea.")
+
+    repo.delete_idea(title)
+    # Log audit
+    repo.db_handler.log_audit("ideas", title, "DELETE", current_user['username'])
+    return {"status": "success", "message": f"Idea '{title}' deleted."}
+
+# --- Collaboration Endpoints ---
+
+class ShareModel(BaseModel):
+    target_username: str
+    role: str # Owner, Collaborator, Viewer
+
+@app.post("/ideas/{title}/share", response_model=dict)
+def share_idea(title: str, share: ShareModel, current_user: dict = Depends(get_current_user)):
+    success, message = repo.share_idea(title, current_user['username'], share.target_username, share.role)
+    if not success:
+        raise HTTPException(status_code=400, detail=message)
+    return {"status": "success", "message": message}
+
+@app.get("/ideas/{title}/activities", response_model=List[dict])
+def get_activities(title: str, current_user: dict = Depends(get_current_user)):
+    # Check access
+    role_row = repo.db_handler.fetchone("SELECT 1 FROM idea_roles WHERE idea_title = ? AND username = ?", (title, current_user['username']))
+    if not role_row:
+        raise HTTPException(status_code=403, detail="Access denied")
+    return repo.get_activities(title)
+
+@app.get("/notifications", response_model=List[dict])
+def get_notifications(current_user: dict = Depends(get_current_user)):
+    return repo.get_notifications(current_user['username'])
+
+@app.patch("/notifications/{notification_id}/read", response_model=dict)
+def mark_notification_read(notification_id: int, current_user: dict = Depends(get_current_user)):
+    repo.mark_notification_read(notification_id, current_user['username'])
+    return {"status": "success"}
+
 @app.get("/ideas", response_model=List[dict])
 def list_ideas(current_user: dict = Depends(get_current_user)):
-    ideas = repo.get_all_ideas()
+    ideas = repo.get_all_ideas(username=current_user['username'])
     return [idea.to_dict() for idea in ideas]
 
 @app.get("/ideas/{title}", response_model=dict)
@@ -142,7 +194,7 @@ def add_idea(idea: IdeaModel, current_user: dict = Depends(get_current_user)):
         architecture=idea.architecture,
         is_archived=idea.is_archived
     )
-    repo.add_idea(new_idea)
+    repo.add_idea(new_idea, owner_username=current_user['username'])
     return {"status": "success", "message": f"Idea '{idea.title}' created."}
 
 @app.put("/ideas/{original_title}", response_model=dict)
@@ -166,18 +218,15 @@ def update_idea(original_title: str, idea: IdeaModel, current_user: dict = Depen
         architecture=idea.architecture,
         is_archived=idea.is_archived
     )
-    repo.update_idea(original_title, updated_idea)
+    # Permission check: Only Owner or Collaborator can update
+    role_row = repo.db_handler.fetchone("SELECT role FROM idea_roles WHERE idea_title = ? AND username = ?", (original_title, current_user['username']))
+    if not role_row:
+        raise HTTPException(status_code=403, detail="You do not have permission to edit this idea.")
+    if role_row['role'] == 'Viewer':
+        raise HTTPException(status_code=403, detail="Viewers cannot edit ideas.")
+
+    repo.update_idea(original_title, updated_idea, username=current_user['username'])
     return {"status": "success", "message": f"Idea '{original_title}' updated."}
-
-@app.patch("/ideas/{title}/archive", response_model=dict)
-def archive_idea(title: str, archived: bool, current_user: dict = Depends(get_current_user)):
-    repo.archive_idea(title, archived)
-    return {"status": "success", "message": f"Idea '{title}' {'archived' if archived else 'unarchived'}."}
-
-@app.delete("/ideas/{title}", response_model=dict)
-def delete_idea(title: str, current_user: dict = Depends(get_current_user)):
-    repo.delete_idea(title)
-    return {"status": "success", "message": f"Idea '{title}' deleted."}
 
 @app.get("/export")
 def export_ideas(current_user: dict = Depends(get_current_user)):

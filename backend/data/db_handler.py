@@ -84,6 +84,57 @@ class DBHandler:
             )
         ''')
 
+        # Idea Roles Table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS idea_roles (
+                idea_title TEXT,
+                username TEXT,
+                role TEXT,
+                PRIMARY KEY (idea_title, username),
+                FOREIGN KEY (idea_title) REFERENCES ideas (title) ON DELETE CASCADE,
+                FOREIGN KEY (username) REFERENCES users (username) ON DELETE CASCADE
+            )
+        ''')
+
+        # Idea Activities Table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS idea_activities (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                idea_title TEXT,
+                username TEXT,
+                action TEXT,
+                details TEXT,
+                created_at TEXT,
+                FOREIGN KEY (idea_title) REFERENCES ideas (title) ON DELETE CASCADE
+            )
+        ''')
+
+        # Audit Logs Table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS audit_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                table_name TEXT,
+                record_id TEXT,
+                action TEXT,
+                username TEXT,
+                details TEXT,
+                timestamp TEXT
+            )
+        ''')
+
+        # Notifications Table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS notifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT,
+                message TEXT,
+                is_read INTEGER DEFAULT 0,
+                related_idea TEXT,
+                created_at TEXT,
+                FOREIGN KEY (username) REFERENCES users (username) ON DELETE CASCADE
+            )
+        ''')
+
         conn.commit()
         conn.close()
 
@@ -111,9 +162,18 @@ class DBHandler:
         return dict(row) if row else None
 
     # High-level methods for IdeaRepository
-    def read_all_ideas(self):
+    def read_all_ideas(self, username=None):
         # Fetch basic idea info
-        ideas_rows = self.fetchall("SELECT * FROM ideas")
+        if username:
+            query = """
+                SELECT i.* FROM ideas i
+                JOIN idea_roles r ON i.title = r.idea_title
+                WHERE r.username = ?
+            """
+            ideas_rows = self.fetchall(query, (username,))
+        else:
+            ideas_rows = self.fetchall("SELECT * FROM ideas")
+            
         results = []
         
         for row in ideas_rows:
@@ -160,6 +220,14 @@ class DBHandler:
                 1 if idea_dict.get('is_archived', False) else 0,
                 idea_dict.get('created_at', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
             ))
+            
+            username = idea_dict.get('owner_username')
+            if username:
+                # Ensure owner role exists
+                cursor.execute('''
+                    INSERT OR IGNORE INTO idea_roles (idea_title, username, role)
+                    VALUES (?, ?, 'Owner')
+                ''', (idea_dict['title'], username))
 
             # Clear and re-add related data
             cursor.execute("DELETE FROM hurdles WHERE idea_title = ?", (idea_dict['title'],))
@@ -191,3 +259,51 @@ class DBHandler:
 
     def delete_idea(self, title):
         self.execute("DELETE FROM ideas WHERE title = ?", (title,))
+
+    def log_activity(self, idea_title, username, action, details=""):
+        self.execute('''
+            INSERT INTO idea_activities (idea_title, username, action, details, created_at)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (idea_title, username, action, details, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+
+    def get_activities(self, idea_title):
+        return self.fetchall("SELECT * FROM idea_activities WHERE idea_title = ? ORDER BY created_at DESC", (idea_title,))
+
+    def log_audit(self, table_name, record_id, action, username, details=""):
+        self.execute('''
+            INSERT INTO audit_logs (table_name, record_id, action, username, details, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (table_name, record_id, action, username, details, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+
+    def add_notification(self, username, message, related_idea=""):
+        self.execute('''
+            INSERT INTO notifications (username, message, related_idea, created_at)
+            VALUES (?, ?, ?, ?)
+        ''', (username, message, related_idea, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+
+    def get_notifications(self, username):
+        return self.fetchall("SELECT * FROM notifications WHERE username = ? ORDER BY created_at DESC", (username,))
+
+    def mark_notification_read(self, notification_id, username):
+        self.execute("UPDATE notifications SET is_read = 1 WHERE id = ? AND username = ?", (notification_id, username))
+        
+    def share_idea(self, idea_title, owner_username, target_username, role):
+        # Validate target user exists
+        user = self.fetchone("SELECT * FROM users WHERE username = ?", (target_username,))
+        if not user:
+            return False, "Target user not found"
+            
+        # Optional: check if sharing user is Owner
+        is_owner = self.fetchone("SELECT 1 FROM idea_roles WHERE idea_title = ? AND username = ? AND role = 'Owner'", (idea_title, owner_username))
+        if not is_owner:
+            return False, "Only Owner can share the idea"
+            
+        self.execute('''
+            INSERT OR REPLACE INTO idea_roles (idea_title, username, role)
+            VALUES (?, ?, ?)
+        ''', (idea_title, target_username, role))
+        
+        self.add_notification(target_username, f"'{owner_username}' shared idea '{idea_title}' with you as {role}.", idea_title)
+        self.log_activity(idea_title, owner_username, "Shared", f"Shared with {target_username} as {role}")
+        self.log_audit("idea_roles", f"{idea_title}_{target_username}", "GRANT", owner_username, f"Role: {role}")
+        return True, "Idea shared successfully"
