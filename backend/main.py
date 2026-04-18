@@ -12,6 +12,8 @@ from jose import JWTError, jwt
 from data.idea_repository import IdeaRepository
 from components.idea import Idea
 from components.hurdle import Hurdle
+from utils.ai_handler import AIHandler
+import json
 
 # Configuration
 SECRET_KEY = "super-secret-key-for-idea-manager" # In production, use environment variable
@@ -32,6 +34,9 @@ app.add_middleware(
 # Initialize Repository with SQL
 DB_PATH = os.path.join(os.path.dirname(__file__), 'ideas.db')
 repo = IdeaRepository(storage_type="db", db_path=DB_PATH)
+
+# Initialize AI Handler
+ai_handler = AIHandler(model="llama3")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
@@ -234,6 +239,65 @@ def export_ideas(current_user: dict = Depends(get_current_user)):
     # If using SQL, we might want to generate a fresh CSV here.
     # For now, we'll just return the SQLite file or a message.
     return {"status": "info", "message": "SQL migration complete. Use database tools for export for now."}
+
+# --- AI Integration Endpoints ---
+
+@app.post("/ai/summarize", response_model=dict)
+def ai_summarize(title: str, description: str, current_user: dict = Depends(get_current_user)):
+    summary = ai_handler.summarize_idea(title, description)
+    return {"summary": summary}
+
+@app.post("/ai/suggest-hurdles", response_model=List[str])
+def ai_suggest_hurdles(title: str, description: str, current_user: dict = Depends(get_current_user)):
+    return ai_handler.suggest_hurdles(title, description)
+
+@app.post("/ai/feasibility", response_model=dict)
+def ai_feasibility(title: str, description: str, current_user: dict = Depends(get_current_user)):
+    return ai_handler.rate_feasibility(title, description)
+
+@app.post("/ai/expand", response_model=dict)
+def ai_expand(title: str, description: str, current_user: dict = Depends(get_current_user)):
+    return ai_handler.expand_idea(title, description)
+
+@app.post("/ai/tags", response_model=List[str])
+def ai_generate_tags(title: str, description: str, current_user: dict = Depends(get_current_user)):
+    return ai_handler.generate_tags(title, description)
+
+@app.post("/ai/sync-embeddings", response_model=dict)
+def ai_sync_embeddings(current_user: dict = Depends(get_current_user)):
+    ideas = repo.get_all_ideas(username=current_user['username'])
+    count = 0
+    for idea in ideas:
+        text = f"{idea.title} {idea.description} {idea.target_customers}"
+        embedding = ai_handler.get_embedding(text)
+        if embedding:
+            repo.save_embedding(idea.title, embedding)
+            count += 1
+    return {"status": "success", "message": f"Synced {count} embeddings."}
+
+@app.get("/ai/search", response_model=List[dict])
+def ai_semantic_search(query: str, current_user: dict = Depends(get_current_user)):
+    query_embedding = ai_handler.get_embedding(query)
+    if not query_embedding:
+        raise HTTPException(status_code=500, detail="Failed to generate embedding for query.")
+    
+    all_embeddings = repo.get_semantic_search_data()
+    results = []
+    
+    for row in all_embeddings:
+        title = row['idea_title']
+        embedding = json.loads(row['embedding_json'])
+        similarity = ai_handler.cosine_similarity(query_embedding, embedding)
+        results.append({"title": title, "similarity": float(similarity)})
+        
+    # Sort by similarity descending
+    results.sort(key=lambda x: x['similarity'], reverse=True)
+    return results[:10]
+
+@app.post("/settings/ai-model")
+def update_ai_model(model_name: str, current_user: dict = Depends(get_current_user)):
+    ai_handler.set_model(model_name)
+    return {"status": "success", "message": f"AI model set to {model_name}"}
 
 if __name__ == "__main__":
     import uvicorn

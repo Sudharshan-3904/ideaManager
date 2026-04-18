@@ -135,6 +135,16 @@ class DBHandler:
             )
         ''')
 
+        # Idea Embeddings Table (Semantic Search)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS idea_embeddings (
+                idea_title TEXT PRIMARY KEY,
+                embedding_json TEXT,
+                updated_at TEXT,
+                FOREIGN KEY (idea_title) REFERENCES ideas (title) ON DELETE CASCADE
+            )
+        ''')
+
         conn.commit()
         conn.close()
 
@@ -307,3 +317,12 @@ class DBHandler:
         self.log_activity(idea_title, owner_username, "Shared", f"Shared with {target_username} as {role}")
         self.log_audit("idea_roles", f"{idea_title}_{target_username}", "GRANT", owner_username, f"Role: {role}")
         return True, "Idea shared successfully"
+
+    def save_embedding(self, title, embedding):
+        self.execute('''
+            INSERT OR REPLACE INTO idea_embeddings (idea_title, embedding_json, updated_at)
+            VALUES (?, ?, ?)
+        ''', (title, json.dumps(embedding), datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+
+    def get_all_embeddings(self):
+        return self.fetchall("SELECT * FROM idea_embeddings")

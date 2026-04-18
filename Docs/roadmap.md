@@ -148,18 +148,18 @@ Expanding from a solo tool to a shared workspace.
 
 ---
 
-## Phase 13 — AI Integration 🔲 _(Planned)_
+## Phase 13 — AI Integration ✅ _(Completed)_
 
 Making the app intelligent and context-aware using local and cloud LLMs.
 
-- [ ] Connect to a local Ollama instance for private AI inference
-- [ ] Auto-generate hurdle suggestions from an idea's title and description
-- [ ] AI-powered idea summary — condense all fields into a concise 3-sentence pitch
-- [ ] Feasibility scoring — rate an idea on effort, novelty, and market fit (1–10)
-- [ ] "Expand Idea" feature — generate minimal deliverables and future extensions automatically
-- [ ] Semantic search across all ideas using embeddings (e.g., `nomic-embed-text` via Ollama)
-- [ ] AI-generated tags — auto-tag ideas based on their content
-- [ ] Add a model selector in Settings to switch between Ollama models
+- [x] Connect to a local Ollama instance for private AI inference
+- [x] Auto-generate hurdle suggestions from an idea's title and description
+- [x] AI-powered idea summary — condense all fields into a concise 3-sentence pitch
+- [x] Feasibility scoring — rate an idea on effort, novelty, and market fit (1–10)
+- [x] "Expand Idea" feature — generate minimal deliverables and future extensions automatically
+- [x] Semantic search across all ideas using embeddings (e.g., `nomic-embed-text` via Ollama)
+- [x] AI-generated tags — auto-tag ideas based on their content
+- [x] Add a model selector in Settings to switch between Ollama models
 
 ---
 

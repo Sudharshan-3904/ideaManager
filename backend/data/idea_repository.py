@@ -100,3 +100,9 @@ class IdeaRepository:
 
     def mark_notification_read(self, id, username):
         self.db_handler.mark_notification_read(id, username)
+
+    def save_embedding(self, title, embedding):
+        self.db_handler.save_embedding(title, embedding)
+
+    def get_semantic_search_data(self):
+        return self.db_handler.get_all_embeddings()
