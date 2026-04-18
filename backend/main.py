@@ -106,6 +106,30 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     access_token = create_access_token(data={"sub": user['username']})
     return {"access_token": access_token, "token_type": "bearer"}
 
+class RegisterModel(BaseModel):
+    username: str
+    password: str
+
+@app.post("/register")
+async def register(form_data: RegisterModel):
+    # Check if user already exists
+    existing = repo.db_handler.fetchone("SELECT id FROM users WHERE username = ?", (form_data.username,))
+    if existing:
+        raise HTTPException(status_code=400, detail="Username already registered")
+    
+    # Simple validation
+    if len(form_data.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters long")
+    
+    # Hash and save
+    password_hash = hash_password(form_data.password)
+    repo.db_handler.execute(
+        "INSERT INTO users (username, password_hash) VALUES (?, ?)",
+        (form_data.username, password_hash)
+    )
+    
+    return {"status": "success", "message": "User registered successfully"}
+
 # --- Idea Endpoints ---
 
 @app.patch("/ideas/{title}/archive", response_model=dict)

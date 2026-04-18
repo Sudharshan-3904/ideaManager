@@ -10,9 +10,9 @@ import * as api from './api';
 import ArchitectureDiagram from './components/ArchitectureDiagram';
 import { Network, Share2 } from 'lucide-react';
 
-
 const App = () => {
     const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('idea_manager_token'));
+    const [isRegistering, setIsRegistering] = useState(false);
     const [loginData, setLoginData] = useState({ username: '', password: '' });
     const [isLoading, setIsLoading] = useState(false);
     const [ideas, setIdeas] = useState([]);
@@ -55,6 +55,20 @@ const App = () => {
             toast.success('Access granted, welcome back.');
         } catch (error) {
             toast.error(error.response?.data?.detail || 'Unauthorized entry.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleRegister = async (e) => {
+        e.preventDefault();
+        setIsLoading(true);
+        try {
+            await api.register(loginData.username, loginData.password);
+            toast.success('Registration successful. You can now login.');
+            setIsRegistering(false);
+        } catch (error) {
+            toast.error(error.response?.data?.detail || 'Registration failed.');
         } finally {
             setIsLoading(false);
         }
@@ -218,6 +232,18 @@ const App = () => {
         }
     };
 
+    const handleSaveArchitecture = async (newArchitecture) => {
+        if (!selectedIdea) return;
+        try {
+            const updatedIdea = { ...selectedIdea, architecture: newArchitecture };
+            await api.updateIdea(selectedIdea.title, updatedIdea);
+            await fetchIdeas(selectedIdea.title);
+            toast.success('Matrix architecture synced.');
+        } catch (error) {
+            toast.error('Matrix sync failed.');
+        }
+    };
+
     const handleImport = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -257,15 +283,17 @@ const App = () => {
                         
                         <div className="flex flex-col items-center gap-6 mb-10">
                             <div className="w-20 h-20 rounded-3xl bg-blue-600/10 flex items-center justify-center border border-blue-500/20 shadow-inner">
-                                <Lock className="w-10 h-10 text-blue-400" />
+                                {isRegistering ? <Plus className="w-10 h-10 text-purple-400" /> : <Lock className="w-10 h-10 text-blue-400" />}
                             </div>
                             <div className="text-center">
                                 <h1 className="text-3xl font-extrabold text-white tracking-tight mb-2">IdeaManager</h1>
-                                <p className="text-slate-500 text-sm font-medium">Neural credentials required for access</p>
+                                <p className="text-slate-500 text-sm font-medium">
+                                    {isRegistering ? 'Initialize new neural identity' : 'Neural credentials required for access'}
+                                </p>
                             </div>
                         </div>
 
-                        <form onSubmit={handleLogin} className="space-y-6">
+                        <form onSubmit={isRegistering ? handleRegister : handleLogin} className="space-y-6">
                             <div className="space-y-4">
                                 <input 
                                     required
@@ -288,9 +316,18 @@ const App = () => {
                                 disabled={isLoading}
                                 className="w-full primary py-4 rounded-2xl font-bold text-sm tracking-widest uppercase hover:scale-[1.02] active:scale-95 transition-all shadow-lg flex items-center justify-center gap-3"
                             >
-                                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Authorize Access'}
+                                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isRegistering ? 'Initialize Identity' : 'Authorize Access')}
                             </button>
                         </form>
+                        
+                        <div className="mt-8 text-center">
+                            <button 
+                                onClick={() => setIsRegistering(!isRegistering)}
+                                className="text-slate-400 hover:text-blue-400 text-xs font-bold uppercase tracking-widest transition-colors"
+                            >
+                                {isRegistering ? 'Back to Authorization' : 'Request New Identity'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -413,7 +450,7 @@ const App = () => {
             </div>
 
             {/* Main Content */}
-            <main className="flex-1 h-full m-3 ml-0 rounded-2xl glass flex flex-col overflow-hidden relative border border-slate-700/50 overflow-y-auto">
+            <main className={`flex-1 h-full m-3 ml-0 rounded-2xl glass flex flex-col overflow-hidden relative border border-slate-700/50 ${viewMode === 'ideas' ? 'overflow-y-auto' : ''}`}>
                 {isAdding || isEditing ? (
                   <div className="p-10 max-w-3xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
                       <div className="flex items-center justify-between mb-8">
