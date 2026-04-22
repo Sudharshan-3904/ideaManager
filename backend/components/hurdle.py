@@ -1,6 +1,9 @@
 from datetime import datetime
 
 class Hurdle:
+    """
+    Represents an obstacle or setback encountered during the development of an idea.
+    """
     def __init__(self, date=None, main_setback="", description="", leads=None):
         self.date = date if date else datetime.now()
         self.main_setback = main_setback

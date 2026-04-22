@@ -3,20 +3,26 @@ import json
 from datetime import datetime
 
 class DBHandler:
+    """
+    Main database interface for the Idea Manager.
+    Handles SQLite connection management, table creation, and CRUD operations.
+    """
     def __init__(self, db_path):
         self.db_path = db_path
-        self.create_tables()
+        self._create_tables()
 
     def _get_connection(self):
+        """Creates and returns a SQLite connection with Row factory enabled."""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         return conn
 
-    def create_tables(self):
+    def _create_tables(self):
+        """Initializes the database schema if it doesn't already exist."""
         conn = self._get_connection()
         cursor = conn.cursor()
         
-        # Enable Foreign Keys
+        # Enforce referential integrity
         cursor.execute("PRAGMA foreign_keys = ON;")
 
         # Ideas Table
@@ -163,6 +169,7 @@ class DBHandler:
         return rows
 
     def fetchone(self, query, params=()):
+        """Fetches a single row from the database and returns it as a dict."""
         conn = self._get_connection()
         cursor = conn.cursor()
         cursor.execute(query, params)
@@ -170,7 +177,7 @@ class DBHandler:
         conn.close()
         return dict(row) if row else None
 
-    # High-level methods for IdeaRepository
+    # --- Idea-Specific Operations ---
     def read_all_ideas(self, username=None):
         # Fetch basic idea info
         if username:
@@ -205,14 +212,13 @@ class DBHandler:
         return results
 
     def save_idea(self, idea_dict):
+        """
+        Saves or updates an idea and its related entities (hurdles, notes, tags) in a single transaction.
+        """
         conn = self._get_connection()
         cursor = conn.cursor()
         try:
-            # Delete existing related records first (if update)
-            # Or just use the cascade + delete idea if title changed, but usually we just update
-            # For simplicity in this personal tool, we use a single transactional save per idea
-            
-            # Start transaction
+            # Start transaction to ensure data integrity
             cursor.execute("BEGIN TRANSACTION;")
             
             # Insert or Replace base idea

@@ -9,7 +9,7 @@ const api = axios.create({
     },
 });
 
-// Interceptor to add the token to every request
+// Request interceptor: Injects JWT token into headers if available
 api.interceptors.request.use((config) => {
     const token = localStorage.getItem('idea_manager_token');
     if (token) {
@@ -20,11 +20,11 @@ api.interceptors.request.use((config) => {
     return Promise.reject(error);
 });
 
-// Interceptor to handle 401 Unauthorized
+// Response interceptor: Handles global error states like 401 Unauthorized
 api.interceptors.response.use((response) => response, (error) => {
     if (error.response && error.response.status === 401) {
         localStorage.removeItem('idea_manager_token');
-        window.location.reload(); // Refresh to show login screen
+        window.location.reload(); // Force re-authentication
     }
     return Promise.reject(error);
 });

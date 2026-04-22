@@ -2,6 +2,9 @@ from components.hurdle import Hurdle
 import json
 
 class Idea:
+    """
+    Represents a startup idea with its associated metadata, hurdles, and architectural state.
+    """
     def __init__(self, title="", description="", explanation="", hurdles=None, notes=None, architecture=None, tags=None, is_archived=False, created_at=None, owner_username=None, status="Yet to Start"):
         self.title = title
         self.description = description
@@ -23,8 +26,10 @@ class Idea:
 
     @classmethod
     def from_dict(cls, data):
-        """Creates an Idea instance from a dictionary (e.g., a CSV row)."""
-        # Note: This is legacy CSV fallback
+        """
+        [Legacy] Creates an Idea instance from a dictionary (typically a CSV row).
+        Used for backward compatibility with older data stores.
+        """
         hurdles_str = data.get('hurdles', "")
         hurdles = []
         if hurdles_str:

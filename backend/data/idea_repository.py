@@ -3,6 +3,10 @@ from data.csv_handler import CSVHandler
 from data.db_handler import DBHandler
 
 class IdeaRepository:
+    """
+    Abstraction layer that manages the switching between CSV and SQL storage.
+    Provides a consistent API for the FastAPI services.
+    """
     def __init__(self, storage_type="db", file_path='ideas.csv', db_path='ideas.db'):
         self.csv_handler = CSVHandler(file_path)
         self.db_handler = DBHandler(db_path)
@@ -18,7 +22,10 @@ class IdeaRepository:
             return [Idea.from_db_row(row) for row in raw_data]
 
     def save_all_ideas(self, ideas):
-        """Persists a list of Idea objects to storage. Note: SQL uses atomic saves."""
+        """
+        Persists a collection of Idea objects. 
+        Note: SQL implementation performs atomic saves per object.
+        """
         if self.storage_type == "csv":
             data_list = [idea.to_csv_dict() for idea in ideas]
             self.csv_handler.write_all(data_list)

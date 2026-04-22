@@ -15,14 +15,19 @@ from components.hurdle import Hurdle
 from utils.ai_handler import AIHandler
 import json
 
-# Configuration
-SECRET_KEY = "super-secret-key-for-idea-manager" # In production, use environment variable
+# --- Core Application Setup ---
+
+SECRET_KEY = "super-secret-key-for-idea-manager"  # Note: Move to environment variables in production
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 hours
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # Standard 24-hour expiration
 
-app = FastAPI(title="Idea Manager API")
+app = FastAPI(
+    title="Idea Manager API",
+    description="Backend service for managing startup ideas, hurdles, and AI integrations."
+)
 
-# Enable CORS for frontend
+# --- Middleware & Integration Initializers ---
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -31,13 +36,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize Repository with SQL
+# Persistence and External Services
 DB_PATH = os.path.join(os.path.dirname(__file__), 'ideas.db')
 repo = IdeaRepository(storage_type="db", db_path=DB_PATH)
-
-# Initialize AI Handler
 ai_handler = AIHandler(model="llama3")
 
+# Security Schemes
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 # --- Security Helpers ---
@@ -95,6 +99,9 @@ class IdeaModel(BaseModel):
 
 @app.post("/login")
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    """
+    Authenticates a user and returns a JWT access token.
+    """
     user = repo.db_handler.fetchone("SELECT * FROM users WHERE username = ?", (form_data.username,))
     if not user:
         raise HTTPException(status_code=400, detail="Incorrect username or password")
@@ -111,16 +118,19 @@ class RegisterModel(BaseModel):
 
 @app.post("/register")
 async def register(form_data: RegisterModel):
-    # Check if user already exists
+    """
+    Registers a new user identity in the system.
+    """
+    # Check for existing identity
     existing = repo.db_handler.fetchone("SELECT id FROM users WHERE username = ?", (form_data.username,))
     if existing:
         raise HTTPException(status_code=400, detail="Username already registered")
     
-    # Simple validation
+    # Enforce minimum complexity
     if len(form_data.password) < 6:
         raise HTTPException(status_code=400, detail="Password must be at least 6 characters long")
     
-    # Hash and save
+    # Persist hashed credentials
     password_hash = hash_password(form_data.password)
     repo.db_handler.execute(
         "INSERT INTO users (username, password_hash) VALUES (?, ?)",
@@ -185,6 +195,9 @@ def mark_notification_read(notification_id: int, current_user: dict = Depends(ge
 
 @app.get("/ideas", response_model=List[dict])
 def list_ideas(current_user: dict = Depends(get_current_user)):
+    """
+    Retrieves all ideas accessible to the authenticated user.
+    """
     ideas = repo.get_all_ideas(username=current_user['username'])
     return [idea.to_dict() for idea in ideas]
 
@@ -256,9 +269,9 @@ def update_idea(original_title: str, idea: IdeaModel, current_user: dict = Depen
 
 @app.get("/export")
 def export_ideas(current_user: dict = Depends(get_current_user)):
-    # Note: Exporting the CSV file directly from current working dir
-    # If using SQL, we might want to generate a fresh CSV here.
-    # For now, we'll just return the SQLite file or a message.
+    """
+    Placeholder for data export functionality.
+    """
     return {"status": "info", "message": "SQL migration complete. Use database tools for export for now."}
 
 # --- AI Integration Endpoints ---

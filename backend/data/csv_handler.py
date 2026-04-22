@@ -2,6 +2,10 @@ import pandas as pd
 import os
 
 class CSVHandler:
+    """
+    Manages low-level CSV file operations using pandas.
+    Used as a fallback or auxiliary storage mechanism.
+    """
     def __init__(self, file_path):
         self.file_path = file_path
         self.columns = ['title', 'description', 'target_customers', 'minimal_deliverables', 'future_extensions', 'hurdles', 'notes', 'architecture', 'tags']

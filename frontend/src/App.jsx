@@ -10,6 +10,12 @@ import * as api from './api';
 import ArchitectureDiagram from './components/ArchitectureDiagram';
 import { Network, Share2 } from 'lucide-react';
 
+/**
+ * Main Application Component
+ * 
+ * Provides the core dashboard interface, authentication flows, and state management
+ * for the Idea Manager frontend.
+ */
 const App = () => {
     const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('idea_manager_token'));
     const [isRegistering, setIsRegistering] = useState(false);
@@ -39,11 +45,14 @@ const App = () => {
         status: 'Yet to Start'
     });
 
+    // --- Initial Data Fetching ---
     useEffect(() => {
         if (isAuthenticated) {
             fetchIdeas();
         }
     }, [isAuthenticated]);
+
+    // --- Authentication Handlers ---
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -100,11 +109,14 @@ const App = () => {
         }
     };
 
+    // --- Navigation & Selection ---
     const handleSelectIdea = (idea) => {
         setSelectedIdea(idea);
         setIsEditing(false);
         setIsAdding(false);
     };
+
+    // --- CRUD Operations ---
 
     const handleAddClick = () => {
         setIsAdding(true);
@@ -254,6 +266,7 @@ const App = () => {
         });
     };
 
+    // --- Render Helpers ---
     const allTags = Array.from(new Set(ideas.flatMap(i => i.tags || [])));
 
     const filteredAndSortedIdeas = ideas
@@ -269,6 +282,8 @@ const App = () => {
             if (sortBy === 'hurdles') return (b.hurdles?.length || 0) - (a.hurdles?.length || 0);
             return 0;
         });
+
+    // --- Authentication View ---
 
     if (!isAuthenticated) {
         return (

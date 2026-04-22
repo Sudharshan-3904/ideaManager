@@ -3,6 +3,10 @@ import json
 import numpy as np
 
 class AIHandler:
+    """
+    Interfaces with the local Ollama instance for AI-powered features.
+    Provides methods for summarization, suggestion, and semantic embedding.
+    """
     def __init__(self, base_url="http://localhost:11434", model="llama3"):
         self.base_url = base_url
         self.model = model
@@ -30,13 +34,16 @@ class AIHandler:
         return self._generate(prompt)
 
     def suggest_hurdles(self, title, description):
+        """
+        Generates potential obstacles for an idea using the AI model.
+        """
         prompt = f"Suggest 3 potential hurdles for this startup idea. Return only a JSON array of strings. Title: {title}\nDescription: {description}"
         response = self._generate(prompt, system_prompt="You are a startup consultant. Only output JSON.")
         try:
-            # Basic cleanup in case LLM adds markdown
+            # Strip markdown formatting if present
             clean = response.strip('`').replace('json', '').strip()
             return json.loads(clean)
-        except:
+        except (ValueError, json.JSONDecodeError):
             return [response]
 
     def rate_feasibility(self, title, description):
@@ -67,8 +74,11 @@ class AIHandler:
             return []
 
     def get_embedding(self, text):
+        """
+        Generates a vector embedding for the given text using the 'nomic-embed-text' model.
+        """
         payload = {
-            "model": "nomic-embed-text", # Standard embedding model in Ollama
+            "model": "nomic-embed-text", 
             "prompt": text
         }
         try:
@@ -76,7 +86,7 @@ class AIHandler:
             if response.status_code == 200:
                 return response.json().get('embedding', [])
             return []
-        except:
+        except requests.RequestException:
             return []
 
     @staticmethod
