@@ -162,3 +162,28 @@ Making the app intelligent and context-aware using local and cloud LLMs.
 - [x] Add a model selector in Settings to switch between Ollama models
 
 ---
+
+## Phase 14 — Advanced Intelligence 🚀 _(Planned)_
+
+Elevating the app to a professional Proof of Concept for startup incubation.
+
+- [ ] **Pitch Deck / Executive Summary Export**: Generate a professional pitch deck outline and export it to Markdown/PDF.
+- [ ] **Real-time Competitor Search**: Integrate a search API to discover real-world competitors and market trends.
+- [ ] **AI-Generated Architecture Suggestions**: Allow AI to propose the initial XYFlow diagram based on the idea's technical requirements.
+- [ ] **"Red Team" AI (Devil's Advocate)**: A specialized AI mode that critiques the idea, identifying potential flaws and risks.
+- [ ] **Portfolio Analytics Dashboard**: A high-level view showing the Feasibility vs. Novelty matrix for all stored ideas.
+
+---
+
+## Phase 15 — UX Polish & Professional Utility 💎 _(Planned)_
+
+Hardening the user experience and adding professional-grade tools.
+
+- [ ] **Visual Idea Timeline**: A vertical timeline view showing the evolution of an idea from creation through every hurdle and status change.
+- [ ] **Integrated Resource Gallery**: Support for uploading or linking research papers, design mockups, and reference images per idea.
+- [ ] **Custom Theme Engine**: Switch between "Cyberpunk," "Minimalist," and "Enterprise" aesthetics.
+- [ ] **Pitch Timer / Flashcards**: A dedicated practice mode for founders to rehearse their 30-second elevator pitches.
+- [ ] **Collaborative "Public" Link**: Generate unique, read-only URLs to share specific ideas with external mentors or partners.
+- [ ] **GitHub / Tool Integrations**: One-click repository creation and task export to Trello or Jira.
+
+---
