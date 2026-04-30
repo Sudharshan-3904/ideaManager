@@ -13,6 +13,7 @@ from data.idea_repository import IdeaRepository
 from components.idea import Idea
 from components.hurdle import Hurdle
 from utils.ai_handler import AIHandler
+from utils.agent_tools import AgentTools
 import json
 from dotenv import load_dotenv
 
@@ -44,6 +45,7 @@ app.add_middleware(
 DB_PATH = os.path.join(os.path.dirname(__file__), 'ideas.db')
 repo = IdeaRepository(storage_type="db", db_path=DB_PATH)
 ai_handler = AIHandler()
+agent_tools = AgentTools(repo)
 
 # Security Schemes
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
@@ -320,65 +322,74 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     messages: List[ChatMessage]
 
-@app.post("/ideas/{title}/chat", response_model=dict)
-def chat_with_idea(title: str, request: ChatRequest, current_user: dict = Depends(get_current_user)):
-    # Fetch the idea to provide context
-    ideas = repo.get_all_ideas()
-    target_idea = None
-    for idea in ideas:
-        if idea.title.lower() == title.lower():
-            target_idea = idea
-            break
-    
-    if not target_idea:
-        raise HTTPException(status_code=404, detail="Idea not found")
-    
-    # Check access
-    role_row = repo.db_handler.fetchone("SELECT 1 FROM idea_roles WHERE idea_title = ? AND username = ?", (target_idea.title, current_user['username']))
-    if not role_row:
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    system_prompt = f"""You are an expert startup consultant helping refine the following idea:
-Title: {target_idea.title}
-Description: {target_idea.description}
-Explanation: {target_idea.explanation}
-Current Hurdles: {', '.join([h.main_setback for h in target_idea.hurdles])}
-
-Your goal is to provide actionable advice, brainstorm improvements, and help the user flesh out the details of this specific idea.
-Be concise but insightful."""
-
-    messages = [{"role": m.role, "content": m.content} for m in request.messages]
-    response_content = ai_handler.chat(messages, system_prompt=system_prompt)
-    
-    return {"response": response_content}
-
 @app.post("/ai/chat", response_model=dict)
 def general_chat(request: ChatRequest, current_user: dict = Depends(get_current_user)):
     """
-    General chatbot that has context over all of the user's ideas.
+    General agentic chatbot that has context over all of the user's ideas and can use tools.
     """
+    # Load system prompt from file
+    prompt_path = os.path.join(os.path.dirname(__file__), 'prompts', 'agent_system_prompt.txt')
+    try:
+        with open(prompt_path, 'r') as f:
+            base_system_prompt = f.read()
+    except Exception as e:
+        print(f"Error loading system prompt: {e}")
+        base_system_prompt = "You are a helpful startup assistant."
+
     ideas = repo.get_all_ideas(username=current_user['username'])
     
     ideas_summary = "\n".join([
         f"- {i.title}: {i.description[:100]}..." for i in ideas
     ])
 
-    system_prompt = f"""You are an advanced AI startup assistant. You have access to the user's current idea portfolio:
-{ideas_summary}
-
-Your goals:
-1. Help brainstorm completely NEW startup ideas.
-2. Suggest improvements or pivots for EXISTING ideas in the portfolio.
-3. Help flesh out details for any concept the user brings up.
-
-If you suggest a change to an existing idea, be specific about which one.
-If you suggest a new idea, provide a catchy title and a brief description.
-Be concise, creative, and professional."""
+    system_prompt = f"{base_system_prompt}\n\nCurrent User Idea Portfolio:\n{ideas_summary}"
 
     messages = [{"role": m.role, "content": m.content} for m in request.messages]
-    response_content = ai_handler.chat(messages, system_prompt=system_prompt)
     
-    return {"response": response_content}
+    # Agent Loop
+    for _ in range(5):
+        result = ai_handler.chat(messages, system_prompt=system_prompt, tools=agent_tools.get_tool_definitions())
+        
+        tool_calls = result.get("tool_calls", [])
+        
+        # Fallback: Detect if the model outputted JSON tool calls in the content instead of native tool_calls
+        if not tool_calls and "create_new_idea" in result["content"] or "update_existing_idea" in result["content"]:
+            try:
+                # Basic regex attempt to find a JSON block
+                import re
+                json_match = re.search(r'(\{.*?\})', result["content"], re.DOTALL)
+                if json_match:
+                    potential_call = json.loads(json_match.group(1))
+                    if "name" in potential_call and ("parameters" in potential_call or "arguments" in potential_call):
+                        tool_calls = [{
+                            "function": {
+                                "name": potential_call["name"],
+                                "arguments": potential_call.get("parameters") or potential_call.get("arguments")
+                            }
+                        }]
+            except:
+                pass
+
+        if not tool_calls:
+            return {"response": result["content"]}
+        
+        # Handle tool calls
+        messages.append({"role": "assistant", "content": result["content"], "tool_calls": tool_calls})
+        
+        for tool_call in tool_calls:
+            tool_name = tool_call["function"]["name"]
+            tool_args = tool_call["function"]["arguments"]
+            
+            print(f"AGENT: Executing tool {tool_name} with args {tool_args}")
+            tool_result = agent_tools.execute_tool(tool_name, tool_args, current_user['username'])
+            
+            messages.append({
+                "role": "tool",
+                "content": json.dumps(tool_result),
+                "name": tool_name
+            })
+            
+    return {"response": result["content"] + "\n\n(Note: Max agent iterations reached)"}
 
 @app.get("/ai/search", response_model=List[dict])
 def ai_semantic_search(query: str, current_user: dict = Depends(get_current_user)):
@@ -406,4 +417,4 @@ def update_ai_model(model_name: str, current_user: dict = Depends(get_current_us
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

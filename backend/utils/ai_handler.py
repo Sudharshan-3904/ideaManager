@@ -95,9 +95,9 @@ class AIHandler:
         except requests.RequestException:
             return []
 
-    def chat(self, messages, system_prompt="You are a helpful startup consultant."):
+    def chat(self, messages, system_prompt="You are a sophisticated, helpful, and proactive startup consultant, similar to Claude. Your goal is to guide the user through the startup lifecycle with intelligence and foresight.", tools=None):
         """
-        Handles a multi-turn conversation using the Ollama chat API.
+        Handles a multi-turn conversation using the Ollama chat API, supporting tool calls.
         """
         url = f"{self.base_url.rstrip('/')}/api/chat"
         payload = {
@@ -105,16 +105,23 @@ class AIHandler:
             "messages": [{"role": "system", "content": system_prompt}] + messages,
             "stream": False
         }
+        if tools:
+            payload["tools"] = tools
+
         print(f"DEBUG: Sending chat request to {url} with model {self.model}")
         try:
             response = requests.post(url, json=payload, timeout=60)
             if response.status_code == 200:
-                return response.json().get('message', {}).get('content', "").strip()
+                msg = response.json().get('message', {})
+                return {
+                    "content": msg.get('content', "").strip(),
+                    "tool_calls": msg.get('tool_calls', [])
+                }
             print(f"DEBUG: Chat request failed with status {response.status_code}: {response.text}")
-            return f"Error: {response.status_code}"
+            return {"content": f"Error: {response.status_code}", "tool_calls": []}
         except Exception as e:
             print(f"DEBUG: Chat request error: {str(e)}")
-            return f"AI Connection Error: {str(e)}"
+            return {"content": f"AI Connection Error: {str(e)}", "tool_calls": []}
 
     @staticmethod
     def cosine_similarity(v1, v2):

@@ -101,11 +101,6 @@ export const importIdeas = async (file) => {
     return response.data;
 };
 
-export const chatWithIdea = async (title, messages) => {
-    const response = await api.post(`/ideas/${title}/chat`, { messages });
-    return response.data;
-};
-
 export const generalChat = async (messages) => {
     const response = await api.post('/ai/chat', { messages });
     return response.data;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, X, MessageSquare, Sparkles, Loader2, User, Bot } from 'lucide-react';
+import { Send, X, MessageSquare, Sparkles, Loader2, User, Bot, Plus, HelpCircle } from 'lucide-react';
 import * as api from '../api';
 
 const Chatbot = ({ idea, onClose }) => {
@@ -14,6 +14,7 @@ const Chatbot = ({ idea, onClose }) => {
     ]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [activeQuestions, setActiveQuestions] = useState([]);
     const messagesEndRef = useRef(null);
 
     const scrollToBottom = () => {
@@ -24,13 +25,34 @@ const Chatbot = ({ idea, onClose }) => {
         scrollToBottom();
     }, [messages]);
 
+    // Extract questions from the latest message whenever messages update
+    useEffect(() => {
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage && lastMessage.role === 'assistant') {
+            const questionRegex = /<questions>(.*?)<\/questions>/s;
+            const match = lastMessage.content.match(questionRegex);
+            if (match) {
+                try {
+                    const questions = JSON.parse(match[1]);
+                    setActiveQuestions(questions);
+                } catch (e) {
+                    console.error("Failed to parse questions:", e);
+                    setActiveQuestions([]);
+                }
+            } else {
+                setActiveQuestions([]);
+            }
+        }
+    }, [messages]);
+
     const handleSend = async (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         if (!input.trim() || isLoading) return;
 
         const userMessage = { role: 'user', content: input };
         setMessages(prev => [...prev, userMessage]);
         setInput('');
+        setActiveQuestions([]); // Clear questions once answered
         setIsLoading(true);
 
         try {
@@ -45,8 +67,20 @@ const Chatbot = ({ idea, onClose }) => {
         }
     };
 
+    const handleQuestionClick = (q) => {
+        setInput(q);
+        // We don't auto-send so the user can refine if needed, 
+        // but often in these UIs it's nice if it feels like a selection.
+    };
+
+    const renderMessageContent = (content) => {
+        const questionRegex = /<questions>(.*?)<\/questions>/s;
+        const textPart = content.replace(questionRegex, '').trim();
+        return <p className="whitespace-pre-wrap">{textPart}</p>;
+    };
+
     return (
-        <div className="flex flex-col h-full bg-[#0d1117] border-l border-white/10 shadow-2xl animate-in slide-in-from-right duration-500 overflow-hidden">
+        <div className="flex flex-col h-full bg-[#0d1117] border-l border-white/10 shadow-2xl animate-in slide-in-from-right duration-500 overflow-hidden relative">
             <div className="p-6 border-b border-white/5 bg-gradient-to-r from-blue-600/10 to-purple-600/10 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center border border-blue-500/30">
@@ -77,7 +111,7 @@ const Chatbot = ({ idea, onClose }) => {
                             ? 'bg-purple-600/10 border border-purple-500/20 text-slate-200 rounded-tr-none' 
                             : 'bg-white/5 border border-white/5 text-slate-300 rounded-tl-none'
                         }`}>
-                            {m.content}
+                            {renderMessageContent(m.content)}
                         </div>
                     </div>
                 ))}
@@ -87,19 +121,40 @@ const Chatbot = ({ idea, onClose }) => {
                             <Loader2 size={16} className="text-blue-400 animate-spin" />
                         </div>
                         <div className="p-4 rounded-2xl bg-white/5 border border-white/5 text-slate-500 text-xs italic">
-                            Analyzing patterns...
+                            Visionary is thinking...
                         </div>
                     </div>
                 )}
                 <div ref={messagesEndRef} />
             </div>
 
+            {/* Questions Extension */}
+            {activeQuestions.length > 0 && (
+                <div className="px-6 py-4 bg-[#0a0d12] border-t border-white/5 animate-in slide-in-from-bottom-4 duration-300">
+                    <div className="flex items-center gap-2 mb-3 text-[10px] font-bold uppercase tracking-widest text-blue-400/60">
+                        <HelpCircle size={12} /> Clarification Requests
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {activeQuestions.map((q, idx) => (
+                            <button 
+                                key={idx}
+                                onClick={() => handleQuestionClick(q)}
+                                className="px-4 py-2 rounded-xl bg-blue-600/5 border border-blue-500/20 text-blue-300 text-[11px] hover:bg-blue-600/10 hover:border-blue-500/40 transition-all flex items-center gap-2 group whitespace-nowrap"
+                            >
+                                {q}
+                                <Plus size={12} className="opacity-40 group-hover:opacity-100" />
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             <form onSubmit={handleSend} className="p-6 border-t border-white/5 bg-[#0d1117]">
                 <div className="relative">
                     <input 
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        placeholder="Ask for feedback, improvements, or hurdles..."
+                        placeholder="Type your response or select a question above..."
                         className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-6 pr-14 text-sm text-white focus:outline-none focus:border-blue-500/50 transition-all"
                     />
                     <button 
