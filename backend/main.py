@@ -147,27 +147,27 @@ async def register(form_data: RegisterModel):
 
 # --- Idea Endpoints ---
 
-@app.patch("/ideas/{title}/archive", response_model=dict)
-def archive_idea(title: str, archived: bool, current_user: dict = Depends(get_current_user)):
+@app.patch("/ideas/{idea_id}/archive", response_model=dict)
+def archive_idea(idea_id: str, archived: bool, current_user: dict = Depends(get_current_user)):
     # Permission check
-    role_row = repo.db_handler.fetchone("SELECT role FROM idea_roles WHERE idea_title = ? AND username = ?", (title, current_user['username']))
+    role_row = repo.db_handler.fetchone("SELECT role FROM idea_roles WHERE idea_id = ? AND username = ?", (idea_id, current_user['username']))
     if not role_row or role_row['role'] == 'Viewer':
         raise HTTPException(status_code=403, detail="You do not have permission to archive this idea.")
 
-    repo.archive_idea(title, archived, username=current_user['username'])
-    return {"status": "success", "message": f"Idea '{title}' {'archived' if archived else 'unarchived'}."}
+    repo.archive_idea(idea_id, archived, username=current_user['username'])
+    return {"status": "success", "message": f"Idea {'archived' if archived else 'unarchived'}."}
 
-@app.delete("/ideas/{title}", response_model=dict)
-def delete_idea(title: str, current_user: dict = Depends(get_current_user)):
+@app.delete("/ideas/{idea_id}", response_model=dict)
+def delete_idea(idea_id: str, current_user: dict = Depends(get_current_user)):
     # Only Owner can delete
-    role_row = repo.db_handler.fetchone("SELECT role FROM idea_roles WHERE idea_title = ? AND username = ?", (title, current_user['username']))
+    role_row = repo.db_handler.fetchone("SELECT role FROM idea_roles WHERE idea_id = ? AND username = ?", (idea_id, current_user['username']))
     if not role_row or role_row['role'] != 'Owner':
         raise HTTPException(status_code=403, detail="Only the Owner can delete this idea.")
 
-    repo.delete_idea(title)
+    repo.delete_idea(idea_id)
     # Log audit
-    repo.db_handler.log_audit("ideas", title, "DELETE", current_user['username'])
-    return {"status": "success", "message": f"Idea '{title}' deleted."}
+    repo.db_handler.log_audit("ideas", idea_id, "DELETE", current_user['username'])
+    return {"status": "success", "message": "Idea purged."}
 
 # --- Collaboration Endpoints ---
 
@@ -175,20 +175,20 @@ class ShareModel(BaseModel):
     target_username: str
     role: str # Owner, Collaborator, Viewer
 
-@app.post("/ideas/{title}/share", response_model=dict)
-def share_idea(title: str, share: ShareModel, current_user: dict = Depends(get_current_user)):
-    success, message = repo.share_idea(title, current_user['username'], share.target_username, share.role)
+@app.post("/ideas/{idea_id}/share", response_model=dict)
+def share_idea(idea_id: str, share: ShareModel, current_user: dict = Depends(get_current_user)):
+    success, message = repo.share_idea(idea_id, current_user['username'], share.target_username, share.role)
     if not success:
         raise HTTPException(status_code=400, detail=message)
     return {"status": "success", "message": message}
 
-@app.get("/ideas/{title}/activities", response_model=List[dict])
-def get_activities(title: str, current_user: dict = Depends(get_current_user)):
+@app.get("/ideas/{idea_id}/activities", response_model=List[dict])
+def get_activities(idea_id: str, current_user: dict = Depends(get_current_user)):
     # Check access
-    role_row = repo.db_handler.fetchone("SELECT 1 FROM idea_roles WHERE idea_title = ? AND username = ?", (title, current_user['username']))
+    role_row = repo.db_handler.fetchone("SELECT 1 FROM idea_roles WHERE idea_id = ? AND username = ?", (idea_id, current_user['username']))
     if not role_row:
         raise HTTPException(status_code=403, detail="Access denied")
-    return repo.get_activities(title)
+    return repo.get_activities(idea_id)
 
 @app.get("/notifications", response_model=List[dict])
 def get_notifications(current_user: dict = Depends(get_current_user)):
@@ -207,18 +207,18 @@ def list_ideas(current_user: dict = Depends(get_current_user)):
     ideas = repo.get_all_ideas(username=current_user['username'])
     return [idea.to_dict() for idea in ideas]
 
-@app.get("/ideas/{title}", response_model=dict)
-def get_idea(title: str, current_user: dict = Depends(get_current_user)):
+@app.get("/ideas/{idea_id}", response_model=dict)
+def get_idea(idea_id: str, current_user: dict = Depends(get_current_user)):
     ideas = repo.get_all_ideas()
     for idea in ideas:
-        if idea.title.lower() == title.lower():
+        if idea.id == idea_id:
             return idea.to_dict()
     raise HTTPException(status_code=404, detail="Idea not found")
 
 @app.post("/ideas", response_model=dict)
 def add_idea(idea: IdeaModel, current_user: dict = Depends(get_current_user)):
-    # Check for duplicate title
-    existing = repo.db_handler.fetchone("SELECT title FROM ideas WHERE title = ?", (idea.title,))
+    # Optional: Check for duplicate title (still good for UX)
+    existing = repo.db_handler.fetchone("SELECT id FROM ideas WHERE title = ?", (idea.title,))
     if existing:
         raise HTTPException(status_code=400, detail=f"An idea with title '{idea.title}' already exists.")
 
@@ -241,11 +241,19 @@ def add_idea(idea: IdeaModel, current_user: dict = Depends(get_current_user)):
         status=idea.status
     )
     repo.add_idea(new_idea, owner_username=current_user['username'])
-    return {"status": "success", "message": f"Idea '{idea.title}' created."}
+    return {"status": "success", "message": f"Idea '{idea.title}' created.", "id": new_idea.id}
 
-@app.put("/ideas/{original_title}", response_model=dict)
-def update_idea(original_title: str, idea: IdeaModel, current_user: dict = Depends(get_current_user)):
+@app.put("/ideas/{idea_id}", response_model=dict)
+def update_idea(idea_id: str, idea: IdeaModel, current_user: dict = Depends(get_current_user)):
+    # Permission check: Only Owner or Collaborator can update
+    role_row = repo.db_handler.fetchone("SELECT role FROM idea_roles WHERE idea_id = ? AND username = ?", (idea_id, current_user['username']))
+    if not role_row:
+        raise HTTPException(status_code=403, detail="You do not have permission to edit this idea.")
+    if role_row['role'] == 'Viewer':
+        raise HTTPException(status_code=403, detail="Viewers cannot edit ideas.")
+
     updated_idea = Idea(
+        id=idea_id,
         title=idea.title,
         description=idea.description,
         explanation=idea.explanation,
@@ -263,15 +271,8 @@ def update_idea(original_title: str, idea: IdeaModel, current_user: dict = Depen
         is_archived=idea.is_archived,
         status=idea.status
     )
-    # Permission check: Only Owner or Collaborator can update
-    role_row = repo.db_handler.fetchone("SELECT role FROM idea_roles WHERE idea_title = ? AND username = ?", (original_title, current_user['username']))
-    if not role_row:
-        raise HTTPException(status_code=403, detail="You do not have permission to edit this idea.")
-    if role_row['role'] == 'Viewer':
-        raise HTTPException(status_code=403, detail="Viewers cannot edit ideas.")
-
-    repo.update_idea(original_title, updated_idea, username=current_user['username'])
-    return {"status": "success", "message": f"Idea '{original_title}' updated."}
+    repo.update_idea(idea_id, updated_idea, username=current_user['username'])
+    return {"status": "success", "message": f"Idea '{idea.title}' updated."}
 
 @app.get("/export")
 def export_ideas(current_user: dict = Depends(get_current_user)):
@@ -308,10 +309,10 @@ def ai_sync_embeddings(current_user: dict = Depends(get_current_user)):
     ideas = repo.get_all_ideas(username=current_user['username'])
     count = 0
     for idea in ideas:
-        text = f"{idea.title} {idea.description} {idea.target_customers}"
+        text = f"{idea.title} {idea.description}"
         embedding = ai_handler.get_embedding(text)
         if embedding:
-            repo.save_embedding(idea.title, embedding)
+            repo.save_embedding(idea.id, embedding)
             count += 1
     return {"status": "success", "message": f"Synced {count} embeddings."}
 
@@ -339,7 +340,7 @@ def general_chat(request: ChatRequest, current_user: dict = Depends(get_current_
     ideas = repo.get_all_ideas(username=current_user['username'])
     
     ideas_summary = "\n".join([
-        f"- {i.title}: {i.description[:100]}..." for i in ideas
+        f"- ID: {i.id} | Title: {i.title}: {i.description[:100]}..." for i in ideas
     ])
 
     system_prompt = f"{base_system_prompt}\n\nCurrent User Idea Portfolio:\n{ideas_summary}"
@@ -353,8 +354,7 @@ def general_chat(request: ChatRequest, current_user: dict = Depends(get_current_
         
         tool_calls = result.get("tool_calls", [])
         
-        # Fallback logic (unchanged)
-        # ... (I'll keep the logic I just added)
+        # Fallback logic
         if not tool_calls and ("create_new_idea" in result["content"] or "update_existing_idea" in result["content"]):
             try:
                 import re
@@ -387,7 +387,7 @@ def general_chat(request: ChatRequest, current_user: dict = Depends(get_current_
             print(f"AGENT: Executing tool {tool_name} with args {tool_args}")
             tool_result = agent_tools.execute_tool(tool_name, tool_args, current_user['username'])
             
-            if tool_result.get("status") == "success":
+            if isinstance(tool_result, dict) and tool_result.get("status") == "success":
                 did_update = True
             
             messages.append({
@@ -408,10 +408,15 @@ def ai_semantic_search(query: str, current_user: dict = Depends(get_current_user
     results = []
     
     for row in all_embeddings:
-        title = row['idea_title']
+        idea_id = row['idea_id']
         embedding = json.loads(row['embedding_json'])
         similarity = ai_handler.cosine_similarity(query_embedding, embedding)
-        results.append({"title": title, "similarity": float(similarity)})
+        
+        # Get title for UX
+        idea = next((i for i in repo.get_all_ideas() if i.id == idea_id), None)
+        title = idea.title if idea else "Unknown"
+        
+        results.append({"id": idea_id, "title": title, "similarity": float(similarity)})
         
     # Sort by similarity descending
     results.sort(key=lambda x: x['similarity'], reverse=True)

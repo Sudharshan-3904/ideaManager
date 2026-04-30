@@ -58,8 +58,8 @@ export const getIdeas = async () => {
     return response.data;
 };
 
-export const getIdea = async (title) => {
-    const response = await api.get(`/ideas/${title}`);
+export const getIdea = async (idea_id) => {
+    const response = await api.get(`/ideas/${idea_id}`);
     return response.data;
 };
 
@@ -68,20 +68,20 @@ export const createIdea = async (idea) => {
     return response.data;
 };
 
-export const updateIdea = async (originalTitle, idea) => {
-    const response = await api.put(`/ideas/${originalTitle}`, idea);
+export const updateIdea = async (idea_id, idea) => {
+    const response = await api.put(`/ideas/${idea_id}`, idea);
     return response.data;
 };
 
-export const archiveIdea = async (title, archived) => {
-    const response = await api.patch(`/ideas/${title}/archive`, null, {
+export const archiveIdea = async (idea_id, archived) => {
+    const response = await api.patch(`/ideas/${idea_id}/archive`, null, {
         params: { archived }
     });
     return response.data;
 };
 
-export const deleteIdea = async (title) => {
-    const response = await api.delete(`/ideas/${title}`);
+export const deleteIdea = async (idea_id) => {
+    const response = await api.delete(`/ideas/${idea_id}`);
     return response.data;
 };
 
@@ -103,6 +103,11 @@ export const importIdeas = async (file) => {
 
 export const generalChat = async (messages) => {
     const response = await api.post('/ai/chat', { messages });
+    return response.data;
+};
+
+export const chatWithIdea = async (idea_id, messages) => {
+    const response = await api.post('/ai/chat', { messages, idea_id });
     return response.data;
 };
 

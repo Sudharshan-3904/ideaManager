@@ -43,50 +43,48 @@ class IdeaRepository:
                 idea_dict['owner_username'] = owner_username
             self.db_handler.save_idea(idea_dict)
             if owner_username:
-                self.db_handler.log_activity(idea.title, owner_username, "Created", "Idea created")
-                self.db_handler.log_audit("ideas", idea.title, "INSERT", owner_username)
+                self.db_handler.log_activity(idea.id, owner_username, "Created", "Idea created")
+                self.db_handler.log_audit("ideas", idea.id, "INSERT", owner_username)
 
-    def update_idea(self, original_title, updated_idea, username=None):
-        """Updates an existing idea by title."""
+    def update_idea(self, original_id, updated_idea, username=None):
+        """Updates an existing idea by ID."""
         if self.storage_type == "csv":
+            # For CSV, we still might need the old logic or a better one, 
+            # but user is likely using DB.
             ideas = self.get_all_ideas()
             for i, idea in enumerate(ideas):
-                if idea.title.strip().lower() == original_title.strip().lower():
+                if idea.id == original_id:
                     ideas[i] = updated_idea
                     break
             self.save_all_ideas(ideas)
         elif self.storage_type == "db":
-            # If title changed, delete original and save updated
-            if original_title.strip().lower() != updated_idea.title.strip().lower():
-                self.db_handler.delete_idea(original_title)
-            
             idea_dict = updated_idea.to_db_dict()
             if username:
-                idea_dict['owner_username'] = username # Keep role consistency if updated by owner
+                idea_dict['owner_username'] = username
             
             self.db_handler.save_idea(idea_dict)
             
             if username:
-                self.db_handler.log_activity(updated_idea.title, username, "Updated", f"Idea updated (Original: {original_title})")
-                self.db_handler.log_audit("ideas", updated_idea.title, "UPDATE", username)
+                self.db_handler.log_activity(updated_idea.id, username, "Updated", f"Idea updated: {updated_idea.title}")
+                self.db_handler.log_audit("ideas", updated_idea.id, "UPDATE", username)
 
-    def delete_idea(self, title):
-        """Deletes an idea by title."""
+    def delete_idea(self, idea_id):
+        """Deletes an idea by ID."""
         if self.storage_type == "csv":
             ideas = self.get_all_ideas()
-            ideas = [idea for idea in ideas if idea.title.strip().lower() != title.strip().lower()]
+            ideas = [idea for idea in ideas if idea.id != idea_id]
             self.save_all_ideas(ideas)
         elif self.storage_type == "db":
-            self.db_handler.delete_idea(title)
+            self.db_handler.delete_idea(idea_id)
             
-    def archive_idea(self, title, status=True, username=None):
-        """Archives or unarchives an idea by title."""
+    def archive_idea(self, idea_id, status=True, username=None):
+        """Archives or unarchives an idea by ID."""
         if self.storage_type == "db":
-            self.db_handler.execute("UPDATE ideas SET is_archived = ? WHERE title = ?", (1 if status else 0, title))
+            self.db_handler.execute("UPDATE ideas SET is_archived = ? WHERE id = ?", (1 if status else 0, idea_id))
             if username:
                 action = "Archived" if status else "Unarchived"
-                self.db_handler.log_activity(title, username, action)
-                self.db_handler.log_audit("ideas", title, "PATCH", username, f"is_archived={status}")
+                self.db_handler.log_activity(idea_id, username, action)
+                self.db_handler.log_audit("ideas", idea_id, "PATCH", username, f"is_archived={status}")
         else:
             # Fallback for CSV (less efficient but maintains existing pattern)
             ideas = self.get_all_ideas()

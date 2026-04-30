@@ -1,11 +1,13 @@
 from components.hurdle import Hurdle
 import json
+import uuid
 
 class Idea:
     """
     Represents a startup idea with its associated metadata, hurdles, and architectural state.
     """
-    def __init__(self, title="", description="", explanation="", hurdles=None, notes=None, architecture=None, tags=None, is_archived=False, created_at=None, owner_username=None, status="Yet to Start"):
+    def __init__(self, id=None, title="", description="", explanation="", hurdles=None, notes=None, architecture=None, tags=None, is_archived=False, created_at=None, owner_username=None, status="Yet to Start"):
+        self.id = id if id is not None else str(uuid.uuid4())
         self.title = title
         self.description = description
         self.explanation = explanation
@@ -73,6 +75,7 @@ class Idea:
             architecture = arch_data
 
         return cls(
+            id=data.get('id'),
             title=data.get('title', ""),
             description=data.get('description', ""),
             explanation=data.get('explanation', ""),
@@ -89,6 +92,7 @@ class Idea:
     def to_dict(self):
         """Serializes the Idea instance to a dictionary for API/JSON."""
         return {
+            'id': self.id,
             'title': self.title,
             'description': self.description,
             'explanation': self.explanation,
@@ -111,6 +115,7 @@ class Idea:
     def to_db_dict(self):
         """Serializes the Idea instance for DB storage (nested dict)."""
         return {
+            'id': self.id,
             'title': self.title,
             'description': self.description,
             'explanation': self.explanation,

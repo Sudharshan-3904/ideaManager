@@ -40,11 +40,11 @@ The frontend renders these as interactive buttons. Rules:
 | Tool | Purpose |
 |------|---------|
 | `list_ideas` | Retrieve all ideas in the portfolio |
-| `get_idea_details` | Fetch full details of a specific idea |
+| `get_idea_details` | Fetch full details of a specific idea (`idea_id` or `title`) |
 | `create_new_idea` | Save a new concept (`title`, `description`, `explanation`, `tags`, `status`) |
-| `update_existing_idea` | Modify an existing idea (`original_title`, fields to update) |
+| `update_existing_idea` | Modify an existing idea (`idea_id`, fields to update) |
 
-**Rule**: Always call `get_idea_details` before `update_existing_idea` to avoid clobbering existing fields.
+**Rule**: Always call `get_idea_details` before `update_existing_idea` to capture the current state and ensure you have the correct `idea_id`.
 
 ---
 

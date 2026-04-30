@@ -24,13 +24,13 @@ class AgentTools:
                 "type": "function",
                 "function": {
                     "name": "get_idea_details",
-                    "description": "Get detailed information about a specific idea by its title.",
+                    "description": "Get detailed information about a specific idea by its ID or title.",
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "title": {"type": "string", "description": "The exact title or name of the idea."}
-                        },
-                        "required": ["title"]
+                            "idea_id": {"type": "string", "description": "The UUID of the idea."},
+                            "title": {"type": "string", "description": "The title of the idea (fallback if ID is unknown)."}
+                        }
                     }
                 }
             },
@@ -60,14 +60,14 @@ class AgentTools:
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "original_title": {"type": "string", "description": "The current title of the idea to be updated."},
+                            "idea_id": {"type": "string", "description": "The UUID of the idea to be updated."},
                             "new_title": {"type": "string", "description": "The new title (if changing)."},
                             "description": {"type": "string", "description": "Updated short summary."},
                             "explanation": {"type": "string", "description": "Updated detailed explanation."},
                             "tags": {"type": "array", "items": {"type": "string"}, "description": "Updated tags."},
                             "status": {"type": "string", "description": "Updated status."}
                         },
-                        "required": ["original_title"]
+                        "required": ["idea_id"]
                     }
                 }
             }
@@ -79,12 +79,17 @@ class AgentTools:
             return [i.to_dict() for i in ideas]
         
         elif name == "get_idea_details":
-            title = arguments.get("title") or arguments.get("name")
+            idea_id = arguments.get("idea_id")
+            title = arguments.get("title")
             ideas = self.repo.get_all_ideas(username=username)
+            
             for idea in ideas:
-                if idea.title.lower() == title.lower():
+                if idea_id and idea.id == idea_id:
                     return idea.to_dict()
-            return {"error": f"Idea '{title}' not found"}
+                if title and idea.title.lower() == title.lower():
+                    return idea.to_dict()
+                    
+            return {"error": "Idea not found"}
 
         elif name == "create_new_idea":
             title = arguments.get("title") or arguments.get("name")
@@ -96,21 +101,22 @@ class AgentTools:
                 status=arguments.get("status", "Yet to Start")
             )
             self.repo.add_idea(new_idea, owner_username=username)
-            return {"status": "success", "message": f"Idea '{title}' created successfully."}
+            return {"status": "success", "message": f"Idea '{title}' created successfully.", "id": new_idea.id}
 
         elif name == "update_existing_idea":
-            orig_title = arguments.get("original_title")
+            idea_id = arguments.get("idea_id")
             ideas = self.repo.get_all_ideas(username=username)
             target = None
             for i in ideas:
-                if i.title.lower() == orig_title.lower():
+                if i.id == idea_id:
                     target = i
                     break
             
             if not target:
-                return {"error": f"Idea with title '{orig_title}' not found."}
+                return {"error": f"Idea with ID '{idea_id}' not found."}
 
             updated_idea = Idea(
+                id=target.id,
                 title=arguments.get("new_title", target.title),
                 description=arguments.get("description", target.description),
                 explanation=arguments.get("explanation", target.explanation),
@@ -119,9 +125,10 @@ class AgentTools:
                 hurdles=target.hurdles,
                 notes=target.notes,
                 architecture=target.architecture,
-                is_archived=target.is_archived
+                is_archived=target.is_archived,
+                created_at=target.created_at
             )
-            self.repo.update_idea(orig_title, updated_idea, username=username)
-            return {"status": "success", "message": f"Idea '{orig_title}' updated successfully."}
+            self.repo.update_idea(target.id, updated_idea, username=username)
+            return {"status": "success", "message": f"Idea '{target.title}' updated successfully."}
         
         return {"error": f"Tool '{name}' not found."}

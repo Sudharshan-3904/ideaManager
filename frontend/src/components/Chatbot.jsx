@@ -58,7 +58,7 @@ const Chatbot = ({ idea, onClose, onUpdate }) => {
         try {
             const response = isGeneral 
                 ? await api.generalChat([...messages, userMessage])
-                : await api.chatWithIdea(idea.title, [...messages, userMessage]);
+                : await api.chatWithIdea(idea.id, [...messages, userMessage]);
             
             setMessages(prev => [...prev, { role: 'assistant', content: response.response }]);
             

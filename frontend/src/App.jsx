@@ -3,14 +3,15 @@ import {
   Plus, Trash2, Edit3, Save, X, Lightbulb, Users, Target, Rocket, Activity,
   ChevronRight, MessageCircle, MoreVertical, Search, CheckCircle,
   StickyNote, AlertCircle, Zap, ArrowRight, List, Download, Upload, Filter, Tag as TagIcon,
-  Archive, ArchiveRestore, LogOut, Loader2, Lock, LayoutDashboard, Library
+  Archive, ArchiveRestore, LogOut, Loader2, Lock, LayoutDashboard, Library,
+  Network, Share2, Sparkles
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import * as api from './api';
 import ArchitectureDiagram from './components/ArchitectureDiagram';
 import Chatbot from './components/Chatbot';
 import ConfirmationModal from './components/ConfirmationModal';
-import { Network, Share2, Sparkles } from 'lucide-react';
+import { useRef } from 'react';
 
 /**
  * Main Application Component
@@ -38,6 +39,7 @@ const App = () => {
     const [tagFilter, setTagFilter] = useState('all');
     const [isGlobalChatOpen, setIsGlobalChatOpen] = useState(false);
     const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
+    const fileInputRef = useRef(null);
 
     const [formData, setFormData] = useState({
         title: '',
@@ -96,9 +98,9 @@ const App = () => {
             const data = await api.getIdeas();
             setIdeas(data);
             
-            const targetTitle = shouldSelectUpdated || selectedIdea?.title;
-            if (targetTitle) {
-                const updated = data.find(i => i.title.toLowerCase().trim() === targetTitle.toLowerCase().trim());
+            const targetId = shouldSelectUpdated || selectedIdea?.id;
+            if (targetId) {
+                const updated = data.find(i => i.id === targetId);
                 if (updated) setSelectedIdea(updated);
             } else if (data.length > 0 && !selectedIdea) {
                 // Default to first active idea
@@ -168,15 +170,14 @@ const App = () => {
             };
 
             if (isAdding) {
-                await api.createIdea(cleanData);
+                const response = await api.createIdea(cleanData);
+                await fetchIdeas(response.id);
             } else if (isEditing) {
-                await api.updateIdea(selectedIdea.title, cleanData);
+                await api.updateIdea(selectedIdea.id, cleanData);
+                await fetchIdeas(selectedIdea.id);
             }
-            await fetchIdeas();
             setIsAdding(false);
             setIsEditing(false);
-            const updated = await api.getIdea(cleanData.title);
-            setSelectedIdea(updated);
         })();
 
         toast.promise(promise, {
@@ -190,7 +191,7 @@ const App = () => {
         if (!selectedIdea) return;
         const newStatus = !selectedIdea.is_archived;
         
-        toast.promise(api.archiveIdea(selectedIdea.title, newStatus), {
+        toast.promise(api.archiveIdea(selectedIdea.id, newStatus), {
             loading: newStatus ? 'Archiving...' : 'Restoring...',
             success: () => {
                 fetchIdeas();
@@ -200,13 +201,13 @@ const App = () => {
         });
     };
 
-    const handleDelete = async (title) => {
+    const handleDelete = async (id) => {
         setConfirmModal({
             isOpen: true,
             title: 'Delete Concept?',
-            message: `Are you sure you want to permanently purge "${title}" from the matrix? this action cannot be undone.`,
+            message: `Are you sure you want to permanently purge this from the matrix? this action cannot be undone.`,
             onConfirm: () => {
-                toast.promise(api.deleteIdea(title), {
+                toast.promise(api.deleteIdea(id), {
                     loading: 'Deleting sequence...',
                     success: () => {
                         fetchIdeas();
@@ -224,8 +225,8 @@ const App = () => {
         if (!quickNote.trim()) return;
         try {
             const updatedIdea = { ...selectedIdea, notes: [...(selectedIdea.notes || []), quickNote] };
-            await api.updateIdea(selectedIdea.title, updatedIdea);
-            await fetchIdeas(selectedIdea.title);
+            await api.updateIdea(selectedIdea.id, updatedIdea);
+            await fetchIdeas(selectedIdea.id);
             setQuickNote('');
             setIsQuickAddingNote(false);
             toast.success('Note stored.');
@@ -243,8 +244,8 @@ const App = () => {
                 leads: [] 
             };
             const updatedIdea = { ...selectedIdea, hurdles: [...(selectedIdea.hurdles || []), newHurdle] };
-            await api.updateIdea(selectedIdea.title, updatedIdea);
-            await fetchIdeas(selectedIdea.title);
+            await api.updateIdea(selectedIdea.id, updatedIdea);
+            await fetchIdeas(selectedIdea.id);
             setQuickHurdle({ title: '', desc: '' });
             setIsQuickAddingHurdle(false);
             toast.success('Hurdle recorded.');
@@ -257,24 +258,28 @@ const App = () => {
         if (!selectedIdea) return;
         try {
             const updatedIdea = { ...selectedIdea, architecture: newArchitecture };
-            await api.updateIdea(selectedIdea.title, updatedIdea);
-            await fetchIdeas(selectedIdea.title);
+            await api.updateIdea(selectedIdea.id, updatedIdea);
+            await fetchIdeas(selectedIdea.id);
             toast.success('Matrix architecture synced.');
         } catch (error) {
             toast.error('Matrix sync failed.');
         }
     };
 
+    const handleImportClick = () => {
+        fileInputRef.current?.click();
+    };
+
     const handleImport = async (e) => {
-        const file = e.target.files[0];
+        const file = e.target.files?.[0];
         if (!file) return;
         toast.promise(api.importIdeas(file), {
-            loading: 'Injecting raw data...',
+            loading: 'Importing ideas...',
             success: () => {
                 fetchIdeas();
-                return 'Massive sync complete.';
+                return 'Ideas imported successfully.';
             },
-            error: 'Injection failed.'
+            error: 'Import failed.'
         });
     };
 
@@ -283,14 +288,16 @@ const App = () => {
 
     const filteredAndSortedIdeas = ideas
         .filter(i => {
-            const matchesSearch = i.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                i.description.toLowerCase().includes(searchQuery.toLowerCase());
+            const title = i.title || '';
+            const description = i.description || '';
+            const matchesSearch = title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                description.toLowerCase().includes(searchQuery.toLowerCase());
             const matchesTag = tagFilter === 'all' || (i.tags && i.tags.includes(tagFilter));
             const matchesTab = tabMode === 'active' ? !i.is_archived : i.is_archived;
             return matchesSearch && matchesTag && matchesTab;
         })
         .sort((a, b) => {
-            if (sortBy === 'title') return a.title.localeCompare(b.title);
+            if (sortBy === 'title') return (a.title || '').localeCompare(b.title || '');
             if (sortBy === 'hurdles') return (b.hurdles?.length || 0) - (a.hurdles?.length || 0);
             return 0;
         });
@@ -426,17 +433,17 @@ const App = () => {
                     <div className="flex flex-col gap-1 mt-2">
                         {filteredAndSortedIdeas.length > 0 ? filteredAndSortedIdeas.map((idea) => (
                             <div 
-                                key={idea.title}
+                                key={idea.id}
                                 onClick={() => handleSelectIdea(idea)}
                                 className={`group flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all duration-200 ${
-                                    selectedIdea?.title === idea.title 
+                                    selectedIdea?.id === idea.id 
                                     ? 'bg-blue-600/20 border border-blue-500/30' 
                                     : 'hover:bg-slate-800/50 border border-transparent'
                                 }`}
                             >
                                 <div className="flex flex-col overflow-hidden">
                                     <div className="flex items-center gap-2">
-                                        <span className={`font-medium truncate ${selectedIdea?.title === idea.title ? 'text-blue-300' : 'text-slate-300'}`}>
+                                        <span className={`font-medium truncate ${selectedIdea?.id === idea.id ? 'text-blue-300' : 'text-slate-300'}`}>
                                             {idea.title}
                                         </span>
                                         {idea.hurdles?.length > 0 && <span className="bg-orange-500/20 text-orange-400 text-[8px] px-1 rounded border border-orange-500/30 font-bold">{idea.hurdles.length}</span>}
@@ -456,7 +463,7 @@ const App = () => {
                                         ))}
                                     </div>
                                 </div>
-                                <ChevronRight className={`w-4 h-4 transition-transform ${selectedIdea?.title === idea.title ? 'translate-x-0 opacity-100 text-blue-400' : '-translate-x-2 opacity-0'}`} />
+                                <ChevronRight className={`w-4 h-4 transition-transform ${selectedIdea?.id === idea.id ? 'translate-x-0 opacity-100 text-blue-400' : '-translate-x-2 opacity-0'}`} />
                             </div>
                         )) : (
                             <div className="text-center py-10 opacity-50 text-sm italic flex flex-col items-center gap-2">
@@ -476,7 +483,14 @@ const App = () => {
                         New Concept
                     </button>
                     <div className="flex items-center justify-center gap-2 mt-4 px-2 opacity-50 hover:opacity-100 transition-opacity">
-                        <button onClick={handleImport} className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1.5 p-2 rounded-lg hover:bg-slate-800 flex-1 justify-center">
+                        <input 
+                            type="file" 
+                            ref={fileInputRef} 
+                            onChange={handleImport} 
+                            className="hidden" 
+                            accept=".json"
+                        />
+                        <button onClick={handleImportClick} className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1.5 p-2 rounded-lg hover:bg-slate-800 flex-1 justify-center">
                             <Upload size={14} /> Import
                         </button>
                     </div>
@@ -609,7 +623,7 @@ const App = () => {
                                 <button onClick={handleEditClick} className="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl transition-all border border-slate-700/50 text-blue-300">
                                     <Edit3 size={20} />
                                 </button>
-                                <button onClick={() => handleDelete(selectedIdea.title)} className="p-3 bg-red-950/20 hover:bg-red-900/40 rounded-xl transition-all border border-red-500/20 text-red-500">
+                                <button onClick={() => handleDelete(selectedIdea.id)} className="p-3 bg-red-950/20 hover:bg-red-900/40 rounded-xl transition-all border border-red-500/20 text-red-500">
                                     <Trash2 size={20} />
                                 </button>
                             </div>

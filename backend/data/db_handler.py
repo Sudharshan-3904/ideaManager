@@ -28,7 +28,8 @@ class DBHandler:
         # Ideas Table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS ideas (
-                title TEXT PRIMARY KEY,
+                id TEXT PRIMARY KEY,
+                title TEXT,
                 description TEXT,
                 explanation TEXT,
                 architecture TEXT,
@@ -42,11 +43,11 @@ class DBHandler:
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS hurdles (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                idea_title TEXT,
+                idea_id TEXT,
                 main_setback TEXT NOT NULL,
                 description TEXT,
                 date TEXT,
-                FOREIGN KEY (idea_title) REFERENCES ideas (title) ON DELETE CASCADE
+                FOREIGN KEY (idea_id) REFERENCES ideas (id) ON DELETE CASCADE
             )
         ''')
 
@@ -64,9 +65,9 @@ class DBHandler:
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS idea_notes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                idea_title TEXT,
+                idea_id TEXT,
                 note TEXT NOT NULL,
-                FOREIGN KEY (idea_title) REFERENCES ideas (title) ON DELETE CASCADE
+                FOREIGN KEY (idea_id) REFERENCES ideas (id) ON DELETE CASCADE
             )
         ''')
 
@@ -74,9 +75,9 @@ class DBHandler:
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS idea_tags (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                idea_title TEXT,
+                idea_id TEXT,
                 tag TEXT NOT NULL,
-                FOREIGN KEY (idea_title) REFERENCES ideas (title) ON DELETE CASCADE
+                FOREIGN KEY (idea_id) REFERENCES ideas (id) ON DELETE CASCADE
             )
         ''')
 
@@ -92,11 +93,11 @@ class DBHandler:
         # Idea Roles Table
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS idea_roles (
-                idea_title TEXT,
+                idea_id TEXT,
                 username TEXT,
                 role TEXT,
-                PRIMARY KEY (idea_title, username),
-                FOREIGN KEY (idea_title) REFERENCES ideas (title) ON DELETE CASCADE,
+                PRIMARY KEY (idea_id, username),
+                FOREIGN KEY (idea_id) REFERENCES ideas (id) ON DELETE CASCADE,
                 FOREIGN KEY (username) REFERENCES users (username) ON DELETE CASCADE
             )
         ''')
@@ -105,12 +106,12 @@ class DBHandler:
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS idea_activities (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                idea_title TEXT,
+                idea_id TEXT,
                 username TEXT,
                 action TEXT,
                 details TEXT,
                 created_at TEXT,
-                FOREIGN KEY (idea_title) REFERENCES ideas (title) ON DELETE CASCADE
+                FOREIGN KEY (idea_id) REFERENCES ideas (id) ON DELETE CASCADE
             )
         ''')
 
@@ -134,19 +135,20 @@ class DBHandler:
                 username TEXT,
                 message TEXT,
                 is_read INTEGER DEFAULT 0,
-                related_idea TEXT,
+                related_idea_id TEXT,
                 created_at TEXT,
-                FOREIGN KEY (username) REFERENCES users (username) ON DELETE CASCADE
+                FOREIGN KEY (username) REFERENCES users (username) ON DELETE CASCADE,
+                FOREIGN KEY (related_idea_id) REFERENCES ideas (id) ON DELETE CASCADE
             )
         ''')
 
         # Idea Embeddings Table (Semantic Search)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS idea_embeddings (
-                idea_title TEXT PRIMARY KEY,
+                idea_id TEXT PRIMARY KEY,
                 embedding_json TEXT,
                 updated_at TEXT,
-                FOREIGN KEY (idea_title) REFERENCES ideas (title) ON DELETE CASCADE
+                FOREIGN KEY (idea_id) REFERENCES ideas (id) ON DELETE CASCADE
             )
         ''')
 
@@ -183,7 +185,7 @@ class DBHandler:
         if username:
             query = """
                 SELECT i.* FROM ideas i
-                JOIN idea_roles r ON i.title = r.idea_title
+                JOIN idea_roles r ON i.id = r.idea_id
                 WHERE r.username = ?
             """
             ideas_rows = self.fetchall(query, (username,))
@@ -193,15 +195,15 @@ class DBHandler:
         results = []
         
         for row in ideas_rows:
-            title = row['title']
+            idea_id = row['id']
             # Fetch related data
-            hurdles = self.fetchall("SELECT * FROM hurdles WHERE idea_title = ?", (title,))
+            hurdles = self.fetchall("SELECT * FROM hurdles WHERE idea_id = ?", (idea_id,))
             for h in hurdles:
                 leads = self.fetchall("SELECT lead FROM hurdle_leads WHERE hurdle_id = ?", (h['id'],))
                 h['leads'] = [l['lead'] for l in leads]
             
-            notes = self.fetchall("SELECT note FROM idea_notes WHERE idea_title = ?", (title,))
-            tags = self.fetchall("SELECT tag FROM idea_tags WHERE idea_title = ?", (title,))
+            notes = self.fetchall("SELECT note FROM idea_notes WHERE idea_id = ?", (idea_id,))
+            tags = self.fetchall("SELECT tag FROM idea_tags WHERE idea_id = ?", (idea_id,))
             
             idea_data = dict(row)
             idea_data['hurdles'] = hurdles
@@ -223,10 +225,11 @@ class DBHandler:
             
             # Insert or Replace base idea
             cursor.execute('''
-                INSERT OR REPLACE INTO ideas (title, description, explanation, architecture, status, is_archived, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT OR REPLACE INTO ideas (id, title, description, explanation, architecture, status, is_archived, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
-                idea_dict['title'],
+                idea_dict['id'],
+                idea_dict.get('title', ''),
                 idea_dict.get('description', ''),
                 idea_dict.get('explanation', ''),
                 json.dumps(idea_dict.get('architecture', {"nodes": [], "edges": []})),
@@ -239,30 +242,30 @@ class DBHandler:
             if username:
                 # Ensure owner role exists
                 cursor.execute('''
-                    INSERT OR IGNORE INTO idea_roles (idea_title, username, role)
+                    INSERT OR IGNORE INTO idea_roles (idea_id, username, role)
                     VALUES (?, ?, 'Owner')
-                ''', (idea_dict['title'], username))
+                ''', (idea_dict['id'], username))
 
             # Clear and re-add related data
-            cursor.execute("DELETE FROM hurdles WHERE idea_title = ?", (idea_dict['title'],))
-            cursor.execute("DELETE FROM idea_notes WHERE idea_title = ?", (idea_dict['title'],))
-            cursor.execute("DELETE FROM idea_tags WHERE idea_title = ?", (idea_dict['title'],))
+            cursor.execute("DELETE FROM hurdles WHERE idea_id = ?", (idea_dict['id'],))
+            cursor.execute("DELETE FROM idea_notes WHERE idea_id = ?", (idea_dict['id'],))
+            cursor.execute("DELETE FROM idea_tags WHERE idea_id = ?", (idea_dict['id'],))
 
             for hurdle in idea_dict.get('hurdles', []):
                 cursor.execute('''
-                    INSERT INTO hurdles (idea_title, main_setback, description, date)
+                    INSERT INTO hurdles (idea_id, main_setback, description, date)
                     VALUES (?, ?, ?, ?)
-                ''', (idea_dict['title'], hurdle['main_setback'], hurdle.get('description', ''), hurdle.get('date', '')))
+                ''', (idea_dict['id'], hurdle['main_setback'], hurdle.get('description', ''), hurdle.get('date', '')))
                 
                 hurdle_id = cursor.lastrowid
                 for lead in hurdle.get('leads', []):
                     cursor.execute("INSERT INTO hurdle_leads (hurdle_id, lead) VALUES (?, ?)", (hurdle_id, lead))
 
             for note in idea_dict.get('notes', []):
-                cursor.execute("INSERT INTO idea_notes (idea_title, note) VALUES (?, ?)", (idea_dict['title'], note))
+                cursor.execute("INSERT INTO idea_notes (idea_id, note) VALUES (?, ?)", (idea_dict['id'], note))
 
             for tag in idea_dict.get('tags', []):
-                cursor.execute("INSERT INTO idea_tags (idea_title, tag) VALUES (?, ?)", (idea_dict['title'], tag))
+                cursor.execute("INSERT INTO idea_tags (idea_id, tag) VALUES (?, ?)", (idea_dict['id'], tag))
 
             conn.commit()
         except Exception as e:
@@ -271,17 +274,17 @@ class DBHandler:
         finally:
             conn.close()
 
-    def delete_idea(self, title):
-        self.execute("DELETE FROM ideas WHERE title = ?", (title,))
+    def delete_idea(self, idea_id):
+        self.execute("DELETE FROM ideas WHERE id = ?", (idea_id,))
 
-    def log_activity(self, idea_title, username, action, details=""):
+    def log_activity(self, idea_id, username, action, details=""):
         self.execute('''
-            INSERT INTO idea_activities (idea_title, username, action, details, created_at)
+            INSERT INTO idea_activities (idea_id, username, action, details, created_at)
             VALUES (?, ?, ?, ?, ?)
-        ''', (idea_title, username, action, details, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+        ''', (idea_id, username, action, details, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
 
-    def get_activities(self, idea_title):
-        return self.fetchall("SELECT * FROM idea_activities WHERE idea_title = ? ORDER BY created_at DESC", (idea_title,))
+    def get_activities(self, idea_id):
+        return self.fetchall("SELECT * FROM idea_activities WHERE idea_id = ? ORDER BY created_at DESC", (idea_id,))
 
     def log_audit(self, table_name, record_id, action, username, details=""):
         self.execute('''
@@ -289,11 +292,11 @@ class DBHandler:
             VALUES (?, ?, ?, ?, ?, ?)
         ''', (table_name, record_id, action, username, details, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
 
-    def add_notification(self, username, message, related_idea=""):
+    def add_notification(self, username, message, related_idea_id=""):
         self.execute('''
-            INSERT INTO notifications (username, message, related_idea, created_at)
+            INSERT INTO notifications (username, message, related_idea_id, created_at)
             VALUES (?, ?, ?, ?)
-        ''', (username, message, related_idea, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+        ''', (username, message, related_idea_id, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
 
     def get_notifications(self, username):
         return self.fetchall("SELECT * FROM notifications WHERE username = ? ORDER BY created_at DESC", (username,))
@@ -301,32 +304,32 @@ class DBHandler:
     def mark_notification_read(self, notification_id, username):
         self.execute("UPDATE notifications SET is_read = 1 WHERE id = ? AND username = ?", (notification_id, username))
         
-    def share_idea(self, idea_title, owner_username, target_username, role):
+    def share_idea(self, idea_id, owner_username, target_username, role):
         # Validate target user exists
         user = self.fetchone("SELECT * FROM users WHERE username = ?", (target_username,))
         if not user:
             return False, "Target user not found"
             
         # Optional: check if sharing user is Owner
-        is_owner = self.fetchone("SELECT 1 FROM idea_roles WHERE idea_title = ? AND username = ? AND role = 'Owner'", (idea_title, owner_username))
+        is_owner = self.fetchone("SELECT 1 FROM idea_roles WHERE idea_id = ? AND username = ? AND role = 'Owner'", (idea_id, owner_username))
         if not is_owner:
             return False, "Only Owner can share the idea"
             
         self.execute('''
-            INSERT OR REPLACE INTO idea_roles (idea_title, username, role)
+            INSERT OR REPLACE INTO idea_roles (idea_id, username, role)
             VALUES (?, ?, ?)
-        ''', (idea_title, target_username, role))
+        ''', (idea_id, target_username, role))
         
-        self.add_notification(target_username, f"'{owner_username}' shared idea '{idea_title}' with you as {role}.", idea_title)
-        self.log_activity(idea_title, owner_username, "Shared", f"Shared with {target_username} as {role}")
-        self.log_audit("idea_roles", f"{idea_title}_{target_username}", "GRANT", owner_username, f"Role: {role}")
+        self.add_notification(target_username, f"'{owner_username}' shared an idea with you as {role}.", idea_id)
+        self.log_activity(idea_id, owner_username, "Shared", f"Shared with {target_username} as {role}")
+        self.log_audit("idea_roles", f"{idea_id}_{target_username}", "GRANT", owner_username, f"Role: {role}")
         return True, "Idea shared successfully"
 
-    def save_embedding(self, title, embedding):
+    def save_embedding(self, idea_id, embedding):
         self.execute('''
-            INSERT OR REPLACE INTO idea_embeddings (idea_title, embedding_json, updated_at)
+            INSERT OR REPLACE INTO idea_embeddings (idea_id, embedding_json, updated_at)
             VALUES (?, ?, ?)
-        ''', (title, json.dumps(embedding), datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+        ''', (idea_id, json.dumps(embedding), datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
 
     def get_all_embeddings(self):
         return self.fetchall("SELECT * FROM idea_embeddings")
