@@ -3,7 +3,7 @@ import {
   Plus, Trash2, Edit3, Save, X, Lightbulb, Users, Target, Rocket, Activity,
   ChevronRight, MessageCircle, MoreVertical, Search, CheckCircle,
   StickyNote, AlertCircle, Zap, ArrowRight, List, Download, Upload, Filter, Tag as TagIcon,
-  Archive, ArchiveRestore, LogOut, Loader2, Lock
+  Archive, ArchiveRestore, LogOut, Loader2, Lock, LayoutDashboard, Library
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import * as api from './api';
@@ -28,7 +28,7 @@ const App = () => {
     const [isAdding, setIsAdding] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    const [viewMode, setViewMode] = useState('ideas'); // 'ideas' or 'architecture'
+    const [viewMode, setViewMode] = useState('ideas'); // 'ideas', 'docs', or 'architecture'
     const [tabMode, setTabMode] = useState('active'); // 'active' or 'archived'
     const [quickNote, setQuickNote] = useState('');
     const [quickHurdle, setQuickHurdle] = useState({ title: '', desc: '' });
@@ -581,11 +581,26 @@ const App = () => {
                             </div>
                             <div className="flex gap-2">
                                 <div className="flex bg-slate-900/50 p-1 rounded-xl border border-slate-700/50 mr-4">
-                                    <button onClick={() => setViewMode('ideas')} className={`px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold transition-all ${viewMode === 'ideas' ? 'bg-blue-600 shadow-lg text-white' : 'text-slate-400 hover:text-slate-200'}`}>
-                                        <List size={16} /> Console
+                                    <button 
+                                        onClick={() => setViewMode('ideas')} 
+                                        title="Dashboard"
+                                        className={`p-2.5 rounded-lg transition-all ${viewMode === 'ideas' ? 'bg-blue-600 shadow-lg text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                                    >
+                                        <LayoutDashboard size={18} />
                                     </button>
-                                    <button onClick={() => setViewMode('architecture')} className={`px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold transition-all ${viewMode === 'architecture' ? 'bg-indigo-600 shadow-lg text-white' : 'text-slate-400 hover:text-slate-200'}`}>
-                                        <Network size={16} /> Matrix
+                                    <button 
+                                        onClick={() => setViewMode('docs')} 
+                                        title="Docs & Inspiration"
+                                        className={`p-2.5 rounded-lg transition-all ${viewMode === 'docs' ? 'bg-purple-600 shadow-lg text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                                    >
+                                        <Library size={18} />
+                                    </button>
+                                    <button 
+                                        onClick={() => setViewMode('architecture')} 
+                                        title="Architecture"
+                                        className={`p-2.5 rounded-lg transition-all ${viewMode === 'architecture' ? 'bg-indigo-600 shadow-lg text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                                    >
+                                        <Network size={18} />
                                     </button>
                                 </div>
                                 <button onClick={handleArchiveToggle} title={selectedIdea.is_archived ? "Restore" : "Archive"} className={`p-3 rounded-xl transition-all border ${selectedIdea.is_archived ? 'bg-emerald-950/20 text-emerald-500 border-emerald-500/20' : 'bg-orange-950/20 text-orange-400 border-orange-500/20'}`}>
@@ -603,6 +618,62 @@ const App = () => {
                         {viewMode === 'architecture' ? (
                             <div className="p-8 flex-1 flex flex-col animate-in fade-in duration-500">
                                 <ArchitectureDiagram architecture={selectedIdea?.architecture} onSave={handleSaveArchitecture} />
+                            </div>
+                        ) : viewMode === 'docs' ? (
+                            <div className="flex-1 p-8 overflow-y-auto custom-scrollbar space-y-8 animate-in fade-in duration-500">
+                                <section className="card p-8 rounded-3xl bg-white/5 border border-white/5 space-y-6 hover:border-purple-500/30 transition-all group">
+                                    <div className="flex items-center gap-3 text-purple-400 font-bold text-sm uppercase tracking-widest">
+                                        <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center border border-purple-500/20 group-hover:bg-purple-500/20 transition-all">
+                                            <Share2 className="w-4 h-4" />
+                                        </div>
+                                        Knowledge Base & Related Links
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {(selectedIdea.links || [
+                                            "https://techcrunch.com", 
+                                            "https://news.ycombinator.com",
+                                            "https://producthunt.com"
+                                        ]).map((link, i) => (
+                                            <a key={i} href={link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 bg-slate-900/40 p-4 rounded-2xl border border-white/5 hover:border-purple-500/30 hover:bg-purple-500/5 transition-all group/link">
+                                                <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-500 group-hover/link:text-purple-400 group-hover/link:bg-purple-500/10 transition-all">
+                                                    <Network size={18} />
+                                                </div>
+                                                <div className="flex-1 overflow-hidden">
+                                                    <p className="text-sm text-slate-300 font-medium truncate">{link}</p>
+                                                    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mt-0.5">Reference Data</p>
+                                                </div>
+                                                <ArrowRight size={14} className="text-slate-700 group-hover/link:text-purple-400 group-hover/link:translate-x-1 transition-all" />
+                                            </a>
+                                        ))}
+                                    </div>
+                                    <button className="w-full py-4 border-2 border-dashed border-white/5 rounded-2xl text-slate-600 text-xs font-bold uppercase tracking-widest hover:border-purple-500/20 hover:text-purple-400/50 transition-all">
+                                        + Inject External Link
+                                    </button>
+                                </section>
+
+                                <section className="card p-8 rounded-3xl bg-white/5 border border-white/5 space-y-6 hover:border-blue-500/30 transition-all group">
+                                    <div className="flex items-center gap-3 text-blue-400 font-bold text-sm uppercase tracking-widest">
+                                        <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20 group-hover:bg-blue-500/20 transition-all">
+                                            <Sparkles className="w-4 h-4" />
+                                        </div>
+                                        Creative Inspirations
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        {(selectedIdea.inspirations || [
+                                            { title: "Cyberpunk Aesthetic", desc: "High tech, low life vibe for the interface." },
+                                            { title: "Neural Networks", desc: "The concept of interconnected data nodes." }
+                                        ]).map((insp, i) => (
+                                            <div key={i} className="bg-slate-900/40 p-6 rounded-2xl border border-white/5 hover:border-blue-500/30 transition-all">
+                                                <h4 className="text-sm font-bold text-white mb-2">{insp.title || insp}</h4>
+                                                <p className="text-xs text-slate-500 leading-relaxed">{insp.desc || "Visual or conceptual baseline for the project."}</p>
+                                            </div>
+                                        ))}
+                                        <div className="border-2 border-dashed border-white/5 rounded-2xl flex flex-col items-center justify-center p-6 text-slate-600 group/add hover:border-blue-500/20 transition-all cursor-pointer">
+                                            <Plus size={24} className="mb-2 opacity-20 group-hover/add:opacity-100 group-hover/add:text-blue-400 transition-all" />
+                                            <span className="text-[10px] uppercase font-bold tracking-widest">Add Signal</span>
+                                        </div>
+                                    </div>
+                                </section>
                             </div>
                         ) : (
                             <div className="flex-1 p-8 overflow-y-auto custom-scrollbar space-y-8">
