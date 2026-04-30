@@ -635,6 +635,17 @@ const App = () => {
                             </div>
                         ) : viewMode === 'docs' ? (
                             <div className="flex-1 p-8 overflow-y-auto custom-scrollbar space-y-8 animate-in fade-in duration-500">
+                                <section className="card p-8 rounded-3xl bg-white/5 border border-white/5 space-y-6 hover:border-indigo-500/30 transition-all group">
+                                    <div className="flex items-center gap-3 text-indigo-400 font-bold text-sm uppercase tracking-widest">
+                                        <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 group-hover:bg-indigo-500/20 transition-all">
+                                            <StickyNote className="w-4 h-4" />
+                                        </div>
+                                        Detailed Exploration
+                                    </div>
+                                    <div className="text-slate-300 leading-relaxed text-lg whitespace-pre-wrap font-medium pl-2 border-l-2 border-indigo-500/20">
+                                        {selectedIdea.explanation || 'No detailed explanation provided yet.'}
+                                    </div>
+                                </section>
                                 <section className="card p-8 rounded-3xl bg-white/5 border border-white/5 space-y-6 hover:border-purple-500/30 transition-all group">
                                     <div className="flex items-center gap-3 text-purple-400 font-bold text-sm uppercase tracking-widest">
                                         <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center border border-purple-500/20 group-hover:bg-purple-500/20 transition-all">
@@ -691,19 +702,7 @@ const App = () => {
                             </div>
                         ) : (
                             <div className="flex-1 p-8 overflow-y-auto custom-scrollbar space-y-8">
-                                <section className="card p-8 rounded-3xl bg-white/5 border border-white/5 space-y-6 hover:border-indigo-500/30 transition-all group">
-                                    <div className="flex items-center gap-3 text-indigo-400 font-bold text-sm uppercase tracking-widest">
-                                        <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 group-hover:bg-indigo-500/20 transition-all">
-                                            <StickyNote className="w-4 h-4" />
-                                        </div>
-                                        Detailed Exploration
-                                    </div>
-                                    <div className="text-slate-300 leading-relaxed text-lg whitespace-pre-wrap font-medium pl-2 border-l-2 border-indigo-500/20">
-                                        {selectedIdea.explanation || 'No detailed explanation provided yet.'}
-                                    </div>
-                                </section>
-
-                                <div className="grid grid-cols-2 gap-8 pt-4 border-t border-slate-800">
+                                <div className="grid grid-cols-2 gap-8 pt-4">
                                     <section className="card p-6 rounded-2xl bg-white/5 border border-white/5 space-y-4">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3 text-yellow-400 font-bold text-sm uppercase"><StickyNote className="w-5 h-5" />Thought Logs</div>
