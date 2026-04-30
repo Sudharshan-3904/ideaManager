@@ -9,6 +9,7 @@ import { Toaster, toast } from 'sonner';
 import * as api from './api';
 import ArchitectureDiagram from './components/ArchitectureDiagram';
 import Chatbot from './components/Chatbot';
+import ConfirmationModal from './components/ConfirmationModal';
 import { Network, Share2, Sparkles } from 'lucide-react';
 
 /**
@@ -36,6 +37,7 @@ const App = () => {
     const [sortBy, setSortBy] = useState('title'); // 'title' or 'hurdles'
     const [tagFilter, setTagFilter] = useState('all');
     const [isGlobalChatOpen, setIsGlobalChatOpen] = useState(false);
+    const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
 
     const [formData, setFormData] = useState({
         title: '',
@@ -94,8 +96,9 @@ const App = () => {
             const data = await api.getIdeas();
             setIdeas(data);
             
-            if (shouldSelectUpdated) {
-                const updated = data.find(i => i.title.trim().toLowerCase() === shouldSelectUpdated.trim().toLowerCase());
+            const targetTitle = shouldSelectUpdated || selectedIdea?.title;
+            if (targetTitle) {
+                const updated = data.find(i => i.title.toLowerCase().trim() === targetTitle.toLowerCase().trim());
                 if (updated) setSelectedIdea(updated);
             } else if (data.length > 0 && !selectedIdea) {
                 // Default to first active idea
@@ -198,17 +201,23 @@ const App = () => {
     };
 
     const handleDelete = async (title) => {
-        if (window.confirm(`Are you sure you want to delete "${title}"?`)) {
-            toast.promise(api.deleteIdea(title), {
-                loading: 'Deleting sequence...',
-                success: () => {
-                    fetchIdeas();
-                    setSelectedIdea(null);
-                    return 'Idea purged.';
-                },
-                error: 'Purge failed.'
-            });
-        }
+        setConfirmModal({
+            isOpen: true,
+            title: 'Delete Concept?',
+            message: `Are you sure you want to permanently purge "${title}" from the matrix? this action cannot be undone.`,
+            onConfirm: () => {
+                toast.promise(api.deleteIdea(title), {
+                    loading: 'Deleting sequence...',
+                    success: () => {
+                        fetchIdeas();
+                        setSelectedIdea(null);
+                        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                        return 'Idea purged.';
+                    },
+                    error: 'Purge failed.'
+                });
+            }
+        });
     };
 
     const handleQuickSaveNote = async () => {
@@ -690,10 +699,20 @@ const App = () => {
                 )}
                 {isGlobalChatOpen && (
                     <div className="w-[400px] h-full absolute right-0 top-0 z-50">
-                        <Chatbot idea={null} onClose={() => setIsGlobalChatOpen(false)} />
+                        <Chatbot idea={null} onClose={() => setIsGlobalChatOpen(false)} onUpdate={fetchIdeas} />
                     </div>
                 )}
             </main>
+
+            <ConfirmationModal 
+                isOpen={confirmModal.isOpen}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                onConfirm={confirmModal.onConfirm}
+                onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                confirmText="Purge"
+                cancelText="Abort"
+            />
 
             <style>{`
               @keyframes loading {

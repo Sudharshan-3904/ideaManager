@@ -345,6 +345,7 @@ def general_chat(request: ChatRequest, current_user: dict = Depends(get_current_
     system_prompt = f"{base_system_prompt}\n\nCurrent User Idea Portfolio:\n{ideas_summary}"
 
     messages = [{"role": m.role, "content": m.content} for m in request.messages]
+    did_update = False
     
     # Agent Loop
     for _ in range(5):
@@ -352,14 +353,16 @@ def general_chat(request: ChatRequest, current_user: dict = Depends(get_current_
         
         tool_calls = result.get("tool_calls", [])
         
-        # Fallback: Detect if the model outputted JSON tool calls in the content instead of native tool_calls
-        if not tool_calls and "create_new_idea" in result["content"] or "update_existing_idea" in result["content"]:
+        # Fallback logic (unchanged)
+        # ... (I'll keep the logic I just added)
+        if not tool_calls and ("create_new_idea" in result["content"] or "update_existing_idea" in result["content"]):
             try:
-                # Basic regex attempt to find a JSON block
                 import re
-                json_match = re.search(r'(\{.*?\})', result["content"], re.DOTALL)
-                if json_match:
-                    potential_call = json.loads(json_match.group(1))
+                start_idx = result["content"].find('{')
+                end_idx = result["content"].rfind('}')
+                if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                    json_str = result["content"][start_idx:end_idx+1]
+                    potential_call = json.loads(json_str)
                     if "name" in potential_call and ("parameters" in potential_call or "arguments" in potential_call):
                         tool_calls = [{
                             "function": {
@@ -367,11 +370,12 @@ def general_chat(request: ChatRequest, current_user: dict = Depends(get_current_
                                 "arguments": potential_call.get("parameters") or potential_call.get("arguments")
                             }
                         }]
-            except:
+            except Exception as e:
+                print(f"DEBUG: Fallback JSON parsing failed: {e}")
                 pass
 
         if not tool_calls:
-            return {"response": result["content"]}
+            return {"response": result["content"], "didUpdate": did_update}
         
         # Handle tool calls
         messages.append({"role": "assistant", "content": result["content"], "tool_calls": tool_calls})
@@ -383,13 +387,16 @@ def general_chat(request: ChatRequest, current_user: dict = Depends(get_current_
             print(f"AGENT: Executing tool {tool_name} with args {tool_args}")
             tool_result = agent_tools.execute_tool(tool_name, tool_args, current_user['username'])
             
+            if tool_result.get("status") == "success":
+                did_update = True
+            
             messages.append({
                 "role": "tool",
                 "content": json.dumps(tool_result),
                 "name": tool_name
             })
             
-    return {"response": result["content"] + "\n\n(Note: Max agent iterations reached)"}
+    return {"response": result["content"] + "\n\n(Note: Max agent iterations reached)", "didUpdate": did_update}
 
 @app.get("/ai/search", response_model=List[dict])
 def ai_semantic_search(query: str, current_user: dict = Depends(get_current_user)):

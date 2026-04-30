@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send, X, MessageSquare, Sparkles, Loader2, User, Bot, Plus, HelpCircle } from 'lucide-react';
 import * as api from '../api';
 
-const Chatbot = ({ idea, onClose }) => {
+const Chatbot = ({ idea, onClose, onUpdate }) => {
     const isGeneral = !idea;
     const [messages, setMessages] = useState([
         { 
@@ -59,7 +59,12 @@ const Chatbot = ({ idea, onClose }) => {
             const response = isGeneral 
                 ? await api.generalChat([...messages, userMessage])
                 : await api.chatWithIdea(idea.title, [...messages, userMessage]);
+            
             setMessages(prev => [...prev, { role: 'assistant', content: response.response }]);
+            
+            if (response.didUpdate && onUpdate) {
+                onUpdate();
+            }
         } catch (error) {
             setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error connecting to my neural network.' }]);
         } finally {
