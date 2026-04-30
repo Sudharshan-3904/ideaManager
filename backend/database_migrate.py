@@ -2,60 +2,77 @@ import os
 import sys
 import hashlib
 
-# Add the current directory to path so we can import components/data
+# Add the current directory to the system path to allow importing project modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from data.idea_repository import IdeaRepository
 from data.db_handler import DBHandler
 
-# Simple hashing for a solo personal tool
 def hash_password(password: str) -> str:
-    # Use SHA-256 for simplicity as passlib/bcrypt is failing on this environment
+    """
+    Computes a SHA-256 hash of a password string.
+    
+    Args:
+        password (str): The plain-text password to hash.
+        
+    Returns:
+        str: The hex digest of the hashed password.
+    """
     return hashlib.sha256(password.encode()).hexdigest()
 
 def migrate():
-    print("Starting migration from CSV to SQLite...")
+    """
+    Handles the migration of data from the legacy CSV file to the SQLite database.
+    Initializes a default user if one does not already exist.
+    """
+    print("Initializing migration: CSV to SQLite...")
     
+    # Define file paths for the legacy CSV and the new SQLite database
     csv_path = os.path.join(os.path.dirname(__file__), 'ideas.csv')
     db_path = os.path.join(os.path.dirname(__file__), 'ideas.db')
     
-    # Initialize Repo for CSV
+    # Initialize repository handlers for both storage types
     repo_csv = IdeaRepository(storage_type="csv", file_path=csv_path)
-    
-    # Initialize DB Handler
     db = DBHandler(db_path)
     
-    # 1. Migrate Ideas
+    # Step 1: Migrate Ideas and related entities
     try:
         ideas = repo_csv.get_all_ideas()
-        print(f"Found {len(ideas)} ideas in CSV.")
+        print(f"Source records found: {len(ideas)} ideas.")
         
         for idea in ideas:
-            print(f"Migrating: {idea.title}")
+            print(f"Migrating idea: {idea.title}")
             db.save_idea(idea.to_db_dict())
             
-        print("Idea migration successful.")
+        print("Idea migration completed successfully.")
     except Exception as e:
-        print(f"Error during idea migration: {e}")
+        print(f"Critical error during idea migration: {e}")
 
-    # 2. Create Default User (JD / jd)
+    # Step 2: Ensure a default administrative user exists
     try:
-        hashed_password = hash_password("jd")
+        default_username = "JD"
+        default_password = "jd"
+        hashed_password = hash_password(default_password)
         
-        # Check if user already exists
-        existing_user = db.fetchone("SELECT * FROM users WHERE username = ?", ("JD",))
+        existing_user = db.fetchone("SELECT * FROM users WHERE username = ?", (default_username,))
         if not existing_user:
-            db.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)", ("JD", hashed_password))
-            print("Default user 'JD' created.")
+            db.execute(
+                "INSERT INTO users (username, password_hash) VALUES (?, ?)", 
+                (default_username, hashed_password)
+            )
+            print(f"Default user '{default_username}' created.")
         else:
-            # Update password just in case it was stuck
-            db.execute("UPDATE users SET password_hash = ? WHERE username = ?", (hashed_password, "JD"))
-            print("User 'JD' already exists, updated password hash.")
+            # Sync password hash to ensure consistency
+            db.execute(
+                "UPDATE users SET password_hash = ? WHERE username = ?", 
+                (hashed_password, default_username)
+            )
+            print(f"User '{default_username}' updated with fresh credentials.")
             
     except Exception as e:
-        print(f"Error creating default user: {e}")
+        print(f"Error during user initialization: {e}")
 
-    print("Migration complete.")
+    print("Data migration process finished.")
 
 if __name__ == "__main__":
     migrate()

@@ -13,6 +13,12 @@ import { Plus, Save, Trash2 } from 'lucide-react';
 
 import '@xyflow/react/dist/style.css';
 
+/**
+ * ArchitectureDiagram Component
+ * 
+ * Provides an interactive node-based diagram editor for visualizing idea architectures.
+ * Powered by React Flow.
+ */
 const nodeStyles = {
   default: { 
     background: 'rgba(56, 189, 248, 0.1)', 

@@ -1,19 +1,24 @@
 from components.hurdle import Hurdle
 import json
+import uuid
 
 class Idea:
-    def __init__(self, title="", description="", target_customers="", minimal_deliverables="", future_extensions="", hurdles=None, notes=None, architecture=None, tags=None, is_archived=False, created_at=None):
+    """
+    Represents a startup idea with its associated metadata, hurdles, and architectural state.
+    """
+    def __init__(self, id=None, title="", description="", explanation="", hurdles=None, notes=None, architecture=None, tags=None, is_archived=False, created_at=None, owner_username=None, status="Yet to Start"):
+        self.id = id if id is not None else str(uuid.uuid4())
         self.title = title
         self.description = description
-        self.target_customers = target_customers
-        self.minimal_deliverables = minimal_deliverables
-        self.future_extensions = future_extensions
+        self.explanation = explanation
         self.hurdles = hurdles if hurdles is not None else []
         self.notes = notes if notes is not None else []
         self.architecture = architecture if architecture is not None else {"nodes": [], "edges": []}
         self.tags = tags if tags is not None else []
         self.is_archived = is_archived
         self.created_at = created_at
+        self.owner_username = owner_username
+        self.status = status
 
     def add_hurdle(self, hurdle):
         if isinstance(hurdle, Hurdle):
@@ -23,8 +28,10 @@ class Idea:
 
     @classmethod
     def from_dict(cls, data):
-        """Creates an Idea instance from a dictionary (e.g., a CSV row)."""
-        # Note: This is legacy CSV fallback
+        """
+        [Legacy] Creates an Idea instance from a dictionary (typically a CSV row).
+        Used for backward compatibility with older data stores.
+        """
         hurdles_str = data.get('hurdles', "")
         hurdles = []
         if hurdles_str:
@@ -68,27 +75,27 @@ class Idea:
             architecture = arch_data
 
         return cls(
+            id=data.get('id'),
             title=data.get('title', ""),
             description=data.get('description', ""),
-            target_customers=data.get('target_customers', ""),
-            minimal_deliverables=data.get('minimal_deliverables', ""),
-            future_extensions=data.get('future_extensions', ""),
+            explanation=data.get('explanation', ""),
             hurdles=hurdles,
             notes=data.get('notes', []),
             architecture=architecture,
             tags=data.get('tags', []),
             is_archived=bool(data.get('is_archived', 0)),
-            created_at=data.get('created_at')
+            created_at=data.get('created_at'),
+            owner_username=data.get('owner_username'),
+            status=data.get('status', 'Yet to Start')
         )
 
     def to_dict(self):
         """Serializes the Idea instance to a dictionary for API/JSON."""
         return {
+            'id': self.id,
             'title': self.title,
             'description': self.description,
-            'target_customers': self.target_customers,
-            'minimal_deliverables': self.minimal_deliverables,
-            'future_extensions': self.future_extensions,
+            'explanation': self.explanation,
             'hurdles': [
                 {
                     'date': h.date.strftime('%Y-%m-%d %H:%M:%S'),
@@ -101,20 +108,22 @@ class Idea:
             'architecture': self.architecture,
             'tags': self.tags,
             'is_archived': self.is_archived,
-            'created_at': self.created_at
+            'created_at': self.created_at,
+            'status': self.status
         }
 
     def to_db_dict(self):
         """Serializes the Idea instance for DB storage (nested dict)."""
         return {
+            'id': self.id,
             'title': self.title,
             'description': self.description,
-            'target_customers': self.target_customers,
-            'minimal_deliverables': self.minimal_deliverables,
-            'future_extensions': self.future_extensions,
+            'explanation': self.explanation,
             'architecture': self.architecture,
             'is_archived': self.is_archived,
             'created_at': self.created_at,
+            'owner_username': self.owner_username,
+            'status': self.status,
             'hurdles': [
                 {
                     'date': h.date.strftime('%Y-%m-%d %H:%M:%S'),

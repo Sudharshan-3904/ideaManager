@@ -12,15 +12,27 @@ from jose import JWTError, jwt
 from data.idea_repository import IdeaRepository
 from components.idea import Idea
 from components.hurdle import Hurdle
+from utils.ai_handler import AIHandler
+from utils.agent_tools import AgentTools
+import json
+from dotenv import load_dotenv
 
-# Configuration
-SECRET_KEY = "super-secret-key-for-idea-manager" # In production, use environment variable
+# Load environment variables
+load_dotenv()
+
+# --- Core Application Setup ---
+
+SECRET_KEY = "super-secret-key-for-idea-manager"  # Note: Move to environment variables in production
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 hours
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # Standard 24-hour expiration
 
-app = FastAPI(title="Idea Manager API")
+app = FastAPI(
+    title="Idea Manager API",
+    description="Backend service for managing startup ideas, hurdles, and AI integrations."
+)
 
-# Enable CORS for frontend
+# --- Middleware & Integration Initializers ---
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -29,10 +41,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize Repository with SQL
+# Persistence and External Services
 DB_PATH = os.path.join(os.path.dirname(__file__), 'ideas.db')
 repo = IdeaRepository(storage_type="db", db_path=DB_PATH)
+ai_handler = AIHandler()
+agent_tools = AgentTools(repo)
 
+# Security Schemes
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 # --- Security Helpers ---
@@ -78,19 +93,21 @@ class HurdleModel(BaseModel):
 class IdeaModel(BaseModel):
     title: str
     description: Optional[str] = ""
-    target_customers: Optional[str] = ""
-    minimal_deliverables: Optional[str] = ""
-    future_extensions: Optional[str] = ""
+    explanation: Optional[str] = ""
     hurdles: Optional[List[HurdleModel]] = []
     notes: Optional[List[str]] = []
     tags: Optional[List[str]] = []
     architecture: Optional[Dict[str, Any]] = {"nodes": [], "edges": []}
     is_archived: Optional[bool] = False
+    status: Optional[str] = "Yet to Start"
 
 # --- Auth Endpoints ---
 
 @app.post("/login")
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    """
+    Authenticates a user and returns a JWT access token.
+    """
     user = repo.db_handler.fetchone("SELECT * FROM users WHERE username = ?", (form_data.username,))
     if not user:
         raise HTTPException(status_code=400, detail="Incorrect username or password")
@@ -101,34 +118,114 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     access_token = create_access_token(data={"sub": user['username']})
     return {"access_token": access_token, "token_type": "bearer"}
 
+class RegisterModel(BaseModel):
+    username: str
+    password: str
+
+@app.post("/register")
+async def register(form_data: RegisterModel):
+    """
+    Registers a new user identity in the system.
+    """
+    # Check for existing identity
+    existing = repo.db_handler.fetchone("SELECT id FROM users WHERE username = ?", (form_data.username,))
+    if existing:
+        raise HTTPException(status_code=400, detail="Username already registered")
+    
+    # Enforce minimum complexity
+    if len(form_data.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters long")
+    
+    # Persist hashed credentials
+    password_hash = hash_password(form_data.password)
+    repo.db_handler.execute(
+        "INSERT INTO users (username, password_hash) VALUES (?, ?)",
+        (form_data.username, password_hash)
+    )
+    
+    return {"status": "success", "message": "User registered successfully"}
+
 # --- Idea Endpoints ---
+
+@app.patch("/ideas/{idea_id}/archive", response_model=dict)
+def archive_idea(idea_id: str, archived: bool, current_user: dict = Depends(get_current_user)):
+    # Permission check
+    role_row = repo.db_handler.fetchone("SELECT role FROM idea_roles WHERE idea_id = ? AND username = ?", (idea_id, current_user['username']))
+    if not role_row or role_row['role'] == 'Viewer':
+        raise HTTPException(status_code=403, detail="You do not have permission to archive this idea.")
+
+    repo.archive_idea(idea_id, archived, username=current_user['username'])
+    return {"status": "success", "message": f"Idea {'archived' if archived else 'unarchived'}."}
+
+@app.delete("/ideas/{idea_id}", response_model=dict)
+def delete_idea(idea_id: str, current_user: dict = Depends(get_current_user)):
+    # Only Owner can delete
+    role_row = repo.db_handler.fetchone("SELECT role FROM idea_roles WHERE idea_id = ? AND username = ?", (idea_id, current_user['username']))
+    if not role_row or role_row['role'] != 'Owner':
+        raise HTTPException(status_code=403, detail="Only the Owner can delete this idea.")
+
+    repo.delete_idea(idea_id)
+    # Log audit
+    repo.db_handler.log_audit("ideas", idea_id, "DELETE", current_user['username'])
+    return {"status": "success", "message": "Idea purged."}
+
+# --- Collaboration Endpoints ---
+
+class ShareModel(BaseModel):
+    target_username: str
+    role: str # Owner, Collaborator, Viewer
+
+@app.post("/ideas/{idea_id}/share", response_model=dict)
+def share_idea(idea_id: str, share: ShareModel, current_user: dict = Depends(get_current_user)):
+    success, message = repo.share_idea(idea_id, current_user['username'], share.target_username, share.role)
+    if not success:
+        raise HTTPException(status_code=400, detail=message)
+    return {"status": "success", "message": message}
+
+@app.get("/ideas/{idea_id}/activities", response_model=List[dict])
+def get_activities(idea_id: str, current_user: dict = Depends(get_current_user)):
+    # Check access
+    role_row = repo.db_handler.fetchone("SELECT 1 FROM idea_roles WHERE idea_id = ? AND username = ?", (idea_id, current_user['username']))
+    if not role_row:
+        raise HTTPException(status_code=403, detail="Access denied")
+    return repo.get_activities(idea_id)
+
+@app.get("/notifications", response_model=List[dict])
+def get_notifications(current_user: dict = Depends(get_current_user)):
+    return repo.get_notifications(current_user['username'])
+
+@app.patch("/notifications/{notification_id}/read", response_model=dict)
+def mark_notification_read(notification_id: int, current_user: dict = Depends(get_current_user)):
+    repo.mark_notification_read(notification_id, current_user['username'])
+    return {"status": "success"}
 
 @app.get("/ideas", response_model=List[dict])
 def list_ideas(current_user: dict = Depends(get_current_user)):
-    ideas = repo.get_all_ideas()
+    """
+    Retrieves all ideas accessible to the authenticated user.
+    """
+    ideas = repo.get_all_ideas(username=current_user['username'])
     return [idea.to_dict() for idea in ideas]
 
-@app.get("/ideas/{title}", response_model=dict)
-def get_idea(title: str, current_user: dict = Depends(get_current_user)):
+@app.get("/ideas/{idea_id}", response_model=dict)
+def get_idea(idea_id: str, current_user: dict = Depends(get_current_user)):
     ideas = repo.get_all_ideas()
     for idea in ideas:
-        if idea.title.lower() == title.lower():
+        if idea.id == idea_id:
             return idea.to_dict()
     raise HTTPException(status_code=404, detail="Idea not found")
 
 @app.post("/ideas", response_model=dict)
 def add_idea(idea: IdeaModel, current_user: dict = Depends(get_current_user)):
-    # Check for duplicate title
-    existing = repo.db_handler.fetchone("SELECT title FROM ideas WHERE title = ?", (idea.title,))
+    # Optional: Check for duplicate title (still good for UX)
+    existing = repo.db_handler.fetchone("SELECT id FROM ideas WHERE title = ?", (idea.title,))
     if existing:
         raise HTTPException(status_code=400, detail=f"An idea with title '{idea.title}' already exists.")
 
     new_idea = Idea(
         title=idea.title,
         description=idea.description,
-        target_customers=idea.target_customers,
-        minimal_deliverables=idea.minimal_deliverables,
-        future_extensions=idea.future_extensions,
+        explanation=idea.explanation,
         hurdles=[
             Hurdle(
                 main_setback=h.main_setback, 
@@ -140,19 +237,26 @@ def add_idea(idea: IdeaModel, current_user: dict = Depends(get_current_user)):
         notes=idea.notes,
         tags=idea.tags,
         architecture=idea.architecture,
-        is_archived=idea.is_archived
+        is_archived=idea.is_archived,
+        status=idea.status
     )
-    repo.add_idea(new_idea)
-    return {"status": "success", "message": f"Idea '{idea.title}' created."}
+    repo.add_idea(new_idea, owner_username=current_user['username'])
+    return {"status": "success", "message": f"Idea '{idea.title}' created.", "id": new_idea.id}
 
-@app.put("/ideas/{original_title}", response_model=dict)
-def update_idea(original_title: str, idea: IdeaModel, current_user: dict = Depends(get_current_user)):
+@app.put("/ideas/{idea_id}", response_model=dict)
+def update_idea(idea_id: str, idea: IdeaModel, current_user: dict = Depends(get_current_user)):
+    # Permission check: Only Owner or Collaborator can update
+    role_row = repo.db_handler.fetchone("SELECT role FROM idea_roles WHERE idea_id = ? AND username = ?", (idea_id, current_user['username']))
+    if not role_row:
+        raise HTTPException(status_code=403, detail="You do not have permission to edit this idea.")
+    if role_row['role'] == 'Viewer':
+        raise HTTPException(status_code=403, detail="Viewers cannot edit ideas.")
+
     updated_idea = Idea(
+        id=idea_id,
         title=idea.title,
         description=idea.description,
-        target_customers=idea.target_customers,
-        minimal_deliverables=idea.minimal_deliverables,
-        future_extensions=idea.future_extensions,
+        explanation=idea.explanation,
         hurdles=[
             Hurdle(
                 main_setback=h.main_setback, 
@@ -164,27 +268,164 @@ def update_idea(original_title: str, idea: IdeaModel, current_user: dict = Depen
         notes=idea.notes,
         tags=idea.tags,
         architecture=idea.architecture,
-        is_archived=idea.is_archived
+        is_archived=idea.is_archived,
+        status=idea.status
     )
-    repo.update_idea(original_title, updated_idea)
-    return {"status": "success", "message": f"Idea '{original_title}' updated."}
-
-@app.patch("/ideas/{title}/archive", response_model=dict)
-def archive_idea(title: str, archived: bool, current_user: dict = Depends(get_current_user)):
-    repo.archive_idea(title, archived)
-    return {"status": "success", "message": f"Idea '{title}' {'archived' if archived else 'unarchived'}."}
-
-@app.delete("/ideas/{title}", response_model=dict)
-def delete_idea(title: str, current_user: dict = Depends(get_current_user)):
-    repo.delete_idea(title)
-    return {"status": "success", "message": f"Idea '{title}' deleted."}
+    repo.update_idea(idea_id, updated_idea, username=current_user['username'])
+    return {"status": "success", "message": f"Idea '{idea.title}' updated."}
 
 @app.get("/export")
 def export_ideas(current_user: dict = Depends(get_current_user)):
-    # Note: Exporting the CSV file directly from current working dir
-    # If using SQL, we might want to generate a fresh CSV here.
-    # For now, we'll just return the SQLite file or a message.
+    """
+    Placeholder for data export functionality.
+    """
     return {"status": "info", "message": "SQL migration complete. Use database tools for export for now."}
+
+# --- AI Integration Endpoints ---
+
+@app.post("/ai/summarize", response_model=dict)
+def ai_summarize(title: str, description: str, current_user: dict = Depends(get_current_user)):
+    summary = ai_handler.summarize_idea(title, description)
+    return {"summary": summary}
+
+@app.post("/ai/suggest-hurdles", response_model=List[str])
+def ai_suggest_hurdles(title: str, description: str, current_user: dict = Depends(get_current_user)):
+    return ai_handler.suggest_hurdles(title, description)
+
+@app.post("/ai/feasibility", response_model=dict)
+def ai_feasibility(title: str, description: str, current_user: dict = Depends(get_current_user)):
+    return ai_handler.rate_feasibility(title, description)
+
+@app.post("/ai/expand", response_model=dict)
+def ai_expand(title: str, description: str, current_user: dict = Depends(get_current_user)):
+    return ai_handler.expand_idea(title, description)
+
+@app.post("/ai/tags", response_model=List[str])
+def ai_generate_tags(title: str, description: str, current_user: dict = Depends(get_current_user)):
+    return ai_handler.generate_tags(title, description)
+
+@app.post("/ai/sync-embeddings", response_model=dict)
+def ai_sync_embeddings(current_user: dict = Depends(get_current_user)):
+    ideas = repo.get_all_ideas(username=current_user['username'])
+    count = 0
+    for idea in ideas:
+        text = f"{idea.title} {idea.description}"
+        embedding = ai_handler.get_embedding(text)
+        if embedding:
+            repo.save_embedding(idea.id, embedding)
+            count += 1
+    return {"status": "success", "message": f"Synced {count} embeddings."}
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+class ChatRequest(BaseModel):
+    messages: List[ChatMessage]
+
+@app.post("/ai/chat", response_model=dict)
+def general_chat(request: ChatRequest, current_user: dict = Depends(get_current_user)):
+    """
+    General agentic chatbot that has context over all of the user's ideas and can use tools.
+    """
+    # Load system prompt from file
+    prompt_path = os.path.join(os.path.dirname(__file__), 'prompts', 'agent_system_prompt.txt')
+    try:
+        with open(prompt_path, 'r') as f:
+            base_system_prompt = f.read()
+    except Exception as e:
+        print(f"Error loading system prompt: {e}")
+        base_system_prompt = "You are a helpful startup assistant."
+
+    ideas = repo.get_all_ideas(username=current_user['username'])
+    
+    ideas_summary = "\n".join([
+        f"- ID: {i.id} | Title: {i.title}: {i.description[:100]}..." for i in ideas
+    ])
+
+    system_prompt = f"{base_system_prompt}\n\nCurrent User Idea Portfolio:\n{ideas_summary}"
+
+    messages = [{"role": m.role, "content": m.content} for m in request.messages]
+    did_update = False
+    
+    # Agent Loop
+    for _ in range(5):
+        result = ai_handler.chat(messages, system_prompt=system_prompt, tools=agent_tools.get_tool_definitions())
+        
+        tool_calls = result.get("tool_calls", [])
+        
+        # Fallback logic
+        if not tool_calls and ("create_new_idea" in result["content"] or "update_existing_idea" in result["content"]):
+            try:
+                import re
+                start_idx = result["content"].find('{')
+                end_idx = result["content"].rfind('}')
+                if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                    json_str = result["content"][start_idx:end_idx+1]
+                    potential_call = json.loads(json_str)
+                    if "name" in potential_call and ("parameters" in potential_call or "arguments" in potential_call):
+                        tool_calls = [{
+                            "function": {
+                                "name": potential_call["name"],
+                                "arguments": potential_call.get("parameters") or potential_call.get("arguments")
+                            }
+                        }]
+            except Exception as e:
+                print(f"DEBUG: Fallback JSON parsing failed: {e}")
+                pass
+
+        if not tool_calls:
+            return {"response": result["content"], "didUpdate": did_update}
+        
+        # Handle tool calls
+        messages.append({"role": "assistant", "content": result["content"], "tool_calls": tool_calls})
+        
+        for tool_call in tool_calls:
+            tool_name = tool_call["function"]["name"]
+            tool_args = tool_call["function"]["arguments"]
+            
+            print(f"AGENT: Executing tool {tool_name} with args {tool_args}")
+            tool_result = agent_tools.execute_tool(tool_name, tool_args, current_user['username'])
+            
+            if isinstance(tool_result, dict) and tool_result.get("status") == "success":
+                did_update = True
+            
+            messages.append({
+                "role": "tool",
+                "content": json.dumps(tool_result),
+                "name": tool_name
+            })
+            
+    return {"response": result["content"] + "\n\n(Note: Max agent iterations reached)", "didUpdate": did_update}
+
+@app.get("/ai/search", response_model=List[dict])
+def ai_semantic_search(query: str, current_user: dict = Depends(get_current_user)):
+    query_embedding = ai_handler.get_embedding(query)
+    if not query_embedding:
+        raise HTTPException(status_code=500, detail="Failed to generate embedding for query.")
+    
+    all_embeddings = repo.get_semantic_search_data()
+    results = []
+    
+    for row in all_embeddings:
+        idea_id = row['idea_id']
+        embedding = json.loads(row['embedding_json'])
+        similarity = ai_handler.cosine_similarity(query_embedding, embedding)
+        
+        # Get title for UX
+        idea = next((i for i in repo.get_all_ideas() if i.id == idea_id), None)
+        title = idea.title if idea else "Unknown"
+        
+        results.append({"id": idea_id, "title": title, "similarity": float(similarity)})
+        
+    # Sort by similarity descending
+    results.sort(key=lambda x: x['similarity'], reverse=True)
+    return results[:10]
+
+@app.post("/settings/ai-model")
+def update_ai_model(model_name: str, current_user: dict = Depends(get_current_user)):
+    ai_handler.set_model(model_name)
+    return {"status": "success", "message": f"AI model set to {model_name}"}
 
 if __name__ == "__main__":
     import uvicorn

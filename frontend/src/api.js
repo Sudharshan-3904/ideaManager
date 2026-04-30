@@ -9,7 +9,7 @@ const api = axios.create({
     },
 });
 
-// Interceptor to add the token to every request
+// Request interceptor: Injects JWT token into headers if available
 api.interceptors.request.use((config) => {
     const token = localStorage.getItem('idea_manager_token');
     if (token) {
@@ -20,11 +20,11 @@ api.interceptors.request.use((config) => {
     return Promise.reject(error);
 });
 
-// Interceptor to handle 401 Unauthorized
+// Response interceptor: Handles global error states like 401 Unauthorized
 api.interceptors.response.use((response) => response, (error) => {
     if (error.response && error.response.status === 401) {
         localStorage.removeItem('idea_manager_token');
-        window.location.reload(); // Refresh to show login screen
+        window.location.reload(); // Force re-authentication
     }
     return Promise.reject(error);
 });
@@ -43,6 +43,11 @@ export const login = async (username, password) => {
     return response.data;
 };
 
+export const register = async (username, password) => {
+    const response = await api.post('/register', { username, password });
+    return response.data;
+};
+
 export const logout = () => {
     localStorage.removeItem('idea_manager_token');
     window.location.reload();
@@ -53,8 +58,8 @@ export const getIdeas = async () => {
     return response.data;
 };
 
-export const getIdea = async (title) => {
-    const response = await api.get(`/ideas/${title}`);
+export const getIdea = async (idea_id) => {
+    const response = await api.get(`/ideas/${idea_id}`);
     return response.data;
 };
 
@@ -63,20 +68,20 @@ export const createIdea = async (idea) => {
     return response.data;
 };
 
-export const updateIdea = async (originalTitle, idea) => {
-    const response = await api.put(`/ideas/${originalTitle}`, idea);
+export const updateIdea = async (idea_id, idea) => {
+    const response = await api.put(`/ideas/${idea_id}`, idea);
     return response.data;
 };
 
-export const archiveIdea = async (title, archived) => {
-    const response = await api.patch(`/ideas/${title}/archive`, null, {
+export const archiveIdea = async (idea_id, archived) => {
+    const response = await api.patch(`/ideas/${idea_id}/archive`, null, {
         params: { archived }
     });
     return response.data;
 };
 
-export const deleteIdea = async (title) => {
-    const response = await api.delete(`/ideas/${title}`);
+export const deleteIdea = async (idea_id) => {
+    const response = await api.delete(`/ideas/${idea_id}`);
     return response.data;
 };
 
@@ -93,6 +98,16 @@ export const importIdeas = async (file) => {
             'Content-Type': 'multipart/form-data',
         },
     });
+    return response.data;
+};
+
+export const generalChat = async (messages) => {
+    const response = await api.post('/ai/chat', { messages });
+    return response.data;
+};
+
+export const chatWithIdea = async (idea_id, messages) => {
+    const response = await api.post('/ai/chat', { messages, idea_id });
     return response.data;
 };
 
