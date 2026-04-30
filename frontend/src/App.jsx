@@ -8,7 +8,8 @@ import {
 import { Toaster, toast } from 'sonner';
 import * as api from './api';
 import ArchitectureDiagram from './components/ArchitectureDiagram';
-import { Network, Share2 } from 'lucide-react';
+import Chatbot from './components/Chatbot';
+import { Network, Share2, Sparkles } from 'lucide-react';
 
 /**
  * Main Application Component
@@ -34,6 +35,8 @@ const App = () => {
     const [isQuickAddingHurdle, setIsQuickAddingHurdle] = useState(false);
     const [sortBy, setSortBy] = useState('title'); // 'title' or 'hurdles'
     const [tagFilter, setTagFilter] = useState('all');
+    const [isChatOpen, setIsChatOpen] = useState(false);
+    const [isGlobalChatOpen, setIsGlobalChatOpen] = useState(false);
 
     const [formData, setFormData] = useState({
         title: '',
@@ -114,6 +117,8 @@ const App = () => {
         setSelectedIdea(idea);
         setIsEditing(false);
         setIsAdding(false);
+        setIsChatOpen(false);
+        setIsGlobalChatOpen(false);
     };
 
     // --- CRUD Operations ---
@@ -366,7 +371,8 @@ const App = () => {
                                 IdeaManager
                             </span>
                         </div>
-                        <div className="flex bg-slate-900/50 p-1 rounded-lg border border-slate-700/50">
+                        <div className="flex bg-slate-900/50 p-1 rounded-lg border border-slate-700/50 gap-1">
+                            <button onClick={() => {setIsGlobalChatOpen(!isGlobalChatOpen); setSelectedIdea(null);}} title="Global AI Assistant" className={`p-1.5 rounded-md transition-colors ${isGlobalChatOpen ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-blue-400'}`}><Sparkles size={16} /></button>
                             <button onClick={handleLogout} title="Logout" className="p-1.5 rounded-md text-slate-500 hover:text-red-400 transition-colors"><LogOut size={16} /></button>
                         </div>
                     </div>
@@ -575,6 +581,9 @@ const App = () => {
                                         <Network size={16} /> Matrix
                                     </button>
                                 </div>
+                                <button onClick={() => setIsChatOpen(!isChatOpen)} className={`p-3 rounded-xl transition-all border ${isChatOpen ? 'bg-blue-600 text-white border-blue-500' : 'bg-blue-950/20 text-blue-400 border-blue-500/20'}`}>
+                                    <Sparkles size={20} />
+                                </button>
                                 <button onClick={handleArchiveToggle} title={selectedIdea.is_archived ? "Restore" : "Archive"} className={`p-3 rounded-xl transition-all border ${selectedIdea.is_archived ? 'bg-emerald-950/20 text-emerald-500 border-emerald-500/20' : 'bg-orange-950/20 text-orange-400 border-orange-500/20'}`}>
                                     {selectedIdea.is_archived ? <ArchiveRestore size={20} /> : <Archive size={20} />}
                                 </button>
@@ -682,6 +691,16 @@ const App = () => {
                             <h2 className="text-2xl font-bold text-white tracking-tight">Select a Data Stream</h2>
                             <p className="text-sm opacity-50 mt-2">Initialize a concept from the archive or launch new logic.</p>
                         </div>
+                    </div>
+                )}
+                {isChatOpen && selectedIdea && (
+                    <div className="w-[400px] h-full absolute right-0 top-0 z-50">
+                        <Chatbot idea={selectedIdea} onClose={() => setIsChatOpen(false)} />
+                    </div>
+                )}
+                {isGlobalChatOpen && (
+                    <div className="w-[400px] h-full absolute right-0 top-0 z-50">
+                        <Chatbot idea={null} onClose={() => setIsGlobalChatOpen(false)} />
                     </div>
                 )}
             </main>

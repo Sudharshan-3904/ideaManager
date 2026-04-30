@@ -14,6 +14,10 @@ from components.idea import Idea
 from components.hurdle import Hurdle
 from utils.ai_handler import AIHandler
 import json
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # --- Core Application Setup ---
 
@@ -39,7 +43,7 @@ app.add_middleware(
 # Persistence and External Services
 DB_PATH = os.path.join(os.path.dirname(__file__), 'ideas.db')
 repo = IdeaRepository(storage_type="db", db_path=DB_PATH)
-ai_handler = AIHandler(model="llama3")
+ai_handler = AIHandler()
 
 # Security Schemes
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
@@ -309,6 +313,73 @@ def ai_sync_embeddings(current_user: dict = Depends(get_current_user)):
             count += 1
     return {"status": "success", "message": f"Synced {count} embeddings."}
 
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+class ChatRequest(BaseModel):
+    messages: List[ChatMessage]
+
+@app.post("/ideas/{title}/chat", response_model=dict)
+def chat_with_idea(title: str, request: ChatRequest, current_user: dict = Depends(get_current_user)):
+    # Fetch the idea to provide context
+    ideas = repo.get_all_ideas()
+    target_idea = None
+    for idea in ideas:
+        if idea.title.lower() == title.lower():
+            target_idea = idea
+            break
+    
+    if not target_idea:
+        raise HTTPException(status_code=404, detail="Idea not found")
+    
+    # Check access
+    role_row = repo.db_handler.fetchone("SELECT 1 FROM idea_roles WHERE idea_title = ? AND username = ?", (target_idea.title, current_user['username']))
+    if not role_row:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    system_prompt = f"""You are an expert startup consultant helping refine the following idea:
+Title: {target_idea.title}
+Description: {target_idea.description}
+Explanation: {target_idea.explanation}
+Current Hurdles: {', '.join([h.main_setback for h in target_idea.hurdles])}
+
+Your goal is to provide actionable advice, brainstorm improvements, and help the user flesh out the details of this specific idea.
+Be concise but insightful."""
+
+    messages = [{"role": m.role, "content": m.content} for m in request.messages]
+    response_content = ai_handler.chat(messages, system_prompt=system_prompt)
+    
+    return {"response": response_content}
+
+@app.post("/ai/chat", response_model=dict)
+def general_chat(request: ChatRequest, current_user: dict = Depends(get_current_user)):
+    """
+    General chatbot that has context over all of the user's ideas.
+    """
+    ideas = repo.get_all_ideas(username=current_user['username'])
+    
+    ideas_summary = "\n".join([
+        f"- {i.title}: {i.description[:100]}..." for i in ideas
+    ])
+
+    system_prompt = f"""You are an advanced AI startup assistant. You have access to the user's current idea portfolio:
+{ideas_summary}
+
+Your goals:
+1. Help brainstorm completely NEW startup ideas.
+2. Suggest improvements or pivots for EXISTING ideas in the portfolio.
+3. Help flesh out details for any concept the user brings up.
+
+If you suggest a change to an existing idea, be specific about which one.
+If you suggest a new idea, provide a catchy title and a brief description.
+Be concise, creative, and professional."""
+
+    messages = [{"role": m.role, "content": m.content} for m in request.messages]
+    response_content = ai_handler.chat(messages, system_prompt=system_prompt)
+    
+    return {"response": response_content}
+
 @app.get("/ai/search", response_model=List[dict])
 def ai_semantic_search(query: str, current_user: dict = Depends(get_current_user)):
     query_embedding = ai_handler.get_embedding(query)
@@ -335,4 +406,4 @@ def update_ai_model(model_name: str, current_user: dict = Depends(get_current_us
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8000)
